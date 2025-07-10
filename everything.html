@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>☭ USSR Economy Simulator ☭</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: #eee;
+            padding: 20px;
+        }
+        .section {
+            border: 1px solid #555;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #222;
+        }
+        button, select {
+            margin: 4px;
+        }
+        .met {
+            color: lightgreen;
+            font-weight: bold;
+        }
+        .not-met {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>☭ USSR Economy Simulator ☭</h1>
+
+    <div class="section">
+        <h2>Choose Policy</h2>
+        <select id="policySelect" onchange="selectPolicy()">
+            <option value="none">-- Select Policy --</option>
+            <option value="marxism">Marxism</option>
+            <option value="stalinism">Stalinism</option>
+            <option value="maoism">Maoism</option>
+            <option value="anarcho">Anarcho-Communism</option>
+            <option value="leninism">Leninism</option>
+        </select>
+        <p>Current Policy: <strong id="currentPolicy">None</strong></p>
+    </div>
+
+    <div class="section">
+        <h2>Stats</h2>
+        <p>Manpower: <span id="manpower">0</span></p>
+        <p>Workers: <span id="workers">0</span></p>
+    </div>
+
+    <div class="section">
+        <h2>Hire Workers</h2>
+        <button onclick="hireWorker()">Hire Worker (Cost: <span id="workerCost">10</span> manpower)</button>
+    </div>
+
+    <div class="section">
+        <h2>Assign Workers</h2>
+        <p>Unassigned Workers: <span id="unassigned">0</span></p>
+
+        <p>Steel: <span id="steel">0</span> 
+            <button onclick="assignWorker('steel')">+1</button> 
+            <button onclick="unassignWorker('steel')">-1</button>
+            (Assigned: <span id="steelWorkers">0</span>)
+        </p>
+
+        <p>Food: <span id="food">0</span> 
+            <button onclick="assignWorker('food')">+1</button> 
+            <button onclick="unassignWorker('food')">-1</button>
+            (Assigned: <span id="foodWorkers">0</span>)
+        </p>
+
+        <p>Oil: <span id="oil">0</span> 
+            <button onclick="assignWorker('oil')">+1</button> 
+            <button onclick="unassignWorker('oil')">-1</button>
+            (Assigned: <span id="oilWorkers">0</span>)
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>📋 Daily Quota</h2>
+        <p>Day: <span id="dayCount">1</span></p>
+        <ul>
+            <li>Steel: <span id="quotaSteel">0</span>/<span id="targetSteel">100</span></li>
+            <li>Food: <span id="quotaFood">0</span>/<span id="targetFood">80</span></li>
+            <li>Oil: <span id="quotaOil">0</span>/<span id="targetOil">50</span></li>
+        </ul>
+        <p id="quotaStatus" class="not-met">🚫 Quota Not Met</p>
+    </div>
+
+    <script>
+        let manpower = 0;
+        let workers = 0;
+        let unassignedWorkers = 0;
+
+        let steel = 0, food = 0, oil = 0;
+        let steelWorkers = 0, foodWorkers = 0, oilWorkers = 0;
+
+        let day = 1;
+        let quotaSteel = 0, quotaFood = 0, quotaOil = 0;
+        let baseTargetSteel = 100, baseTargetFood = 80, baseTargetOil = 50;
+        let targetSteel = baseTargetSteel, targetFood = baseTargetFood, targetOil = baseTargetOil;
+
+        let policy = "none";
+        let prodMultiplier = 1;
+        let workerCost = 10;
+        let manpowerGain = 5;
+        let quotaMultiplier = 1;
+
+        function display(value) {
+            return (value > 0 && value < 0.01) ? "0.01" : value.toFixed(2);
+        }
+
+        function updateUI() {
+            document.getElementById("manpower").innerText = display(manpower);
+            document.getElementById("workers").innerText = workers;
+            document.getElementById("unassigned").innerText = unassignedWorkers;
+            document.getElementById("steel").innerText = display(steel);
+            document.getElementById("food").innerText = display(food);
+            document.getElementById("oil").innerText = display(oil);
+            document.getElementById("steelWorkers").innerText = steelWorkers;
+            document.getElementById("foodWorkers").innerText = foodWorkers;
+            document.getElementById("oilWorkers").innerText = oilWorkers;
+            document.getElementById("quotaSteel").innerText = display(quotaSteel);
+            document.getElementById("quotaFood").innerText = display(quotaFood);
+            document.getElementById("quotaOil").innerText = display(quotaOil);
+            document.getElementById("targetSteel").innerText = targetSteel;
+            document.getElementById("targetFood").innerText = targetFood;
+            document.getElementById("targetOil").innerText = targetOil;
+            document.getElementById("dayCount").innerText = day;
+            document.getElementById("currentPolicy").innerText = policy.charAt(0).toUpperCase() + policy.slice(1);
+            document.getElementById("workerCost").innerText = workerCost;
+
+            const met = quotaSteel >= targetSteel && quotaFood >= targetFood && quotaOil >= targetOil;
+            const status = document.getElementById("quotaStatus");
+            status.innerText = met ? "✅ Quota Met! Glory to the Motherland!" : "🚫 Quota Not Met";
+            status.className = met ? "met" : "not-met";
+        }
+
+        function hireWorker() {
+            if (manpower >= workerCost) {
+                manpower -= workerCost;
+                workers++;
+                unassignedWorkers++;
+                updateUI();
+            }
+        }
+
+        function assignWorker(res) {
+            if (unassignedWorkers <= 0) return;
+            unassignedWorkers--;
+            if (res === 'steel') steelWorkers++;
+            if (res === 'food') foodWorkers++;
+            if (res === 'oil') oilWorkers++;
+            updateUI();
+        }
+
+        function unassignWorker(res) {
+            if (res === 'steel' && steelWorkers > 0) { steelWorkers--; unassignedWorkers++; }
+            if (res === 'food' && foodWorkers > 0) { foodWorkers--; unassignedWorkers++; }
+            if (res === 'oil' && oilWorkers > 0) { oilWorkers--; unassignedWorkers++; }
+            updateUI();
+        }
+
+        function selectPolicy() {
+            policy = document.getElementById("policySelect").value;
+
+            // Reset modifiers
+            prodMultiplier = 1;
+            workerCost = 10;
+            manpowerGain = 5;
+            quotaMultiplier = 1;
+
+            if (policy === "marxism") {
+                prodMultiplier = 1.2;
+            } else if (policy === "stalinism") {
+                quotaMultiplier = 1.5;
+                manpowerGain = 6;
+            } else if (policy === "maoism") {
+                workerCost = 0;
+                prodMultiplier = 0.7;
+            } else if (policy === "anarcho") {
+                quotaMultiplier = 0; // no quotas
+            } else if (policy === "leninism") {
+                prodMultiplier = 1.1;
+            }
+
+            // Apply quotas
+            targetSteel = Math.floor(baseTargetSteel * quotaMultiplier);
+            targetFood = Math.floor(baseTargetFood * quotaMultiplier);
+            targetOil = Math.floor(baseTargetOil * quotaMultiplier);
+
+            updateUI();
+        }
+
+        // Game loop - every second
+        setInterval(() => {
+            manpower += manpowerGain;
+
+            let steelGain = steelWorkers * prodMultiplier;
+            let foodGain = foodWorkers * prodMultiplier;
+            let oilGain = oilWorkers * prodMultiplier;
+
+            if (policy === "anarcho") {
+                foodGain *= 1.5;
+                oilGain *= 0.5;
+            }
+
+            steel += steelGain;
+            food += foodGain;
+            oil += oilGain;
+
+            quotaSteel += steelGain;
+            quotaFood += foodGain;
+            quotaOil += oilGain;
+
+            updateUI();
+        }, 1000);
+
+        // New day every 60s
+        setInterval(() => {
+            day++;
+            quotaSteel = 0;
+            quotaFood = 0;
+            quotaOil = 0;
+
+            baseTargetSteel += 10;
+            baseTargetFood += 10;
+            baseTargetOil += 5;
+
+            selectPolicy(); // Recalculate quota based on current policy
+
+            updateUI();
+        }, 60000);
+
+        updateUI();
+    </script>
+</body>
+</html>
