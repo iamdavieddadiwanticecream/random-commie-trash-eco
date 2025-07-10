@@ -65,7 +65,7 @@
 
     <div class="section save-load-buttons">
         <h2>Game Management</h2>
-        <button onclick="saveGame()">Save Game</button>
+        <button onclick="saveGame(true)">Save Game</button>
         <button onclick="loadGame()">Load Game</button>
         <div class="reset-button" style="margin-top: 10px;">
             <button onclick="resetGame()">Reset Game</button>
@@ -154,17 +154,24 @@
         let manpowerGain = 5;
         let quotaMultiplier = 1;
 
-        let gameLoopInterval; // To store the interval ID
-        let dayLoopInterval; // To store the interval ID
+        let gameLoopInterval; // To store the interval ID for per-second updates
+        let dayLoopInterval;  // To store the interval ID for per-minute updates
+        let autoSaveInterval; // To store the interval ID for auto-saving
 
         function display(value) {
             return (value > 0 && value < 0.01) ? "0.01" : value.toFixed(2);
         }
 
+        let messageTimeoutId; // To manage the timeout for game messages
+
         function showGameMessage(message, duration = 3000) {
             const gameMessageEl = document.getElementById("gameMessage");
             gameMessageEl.innerText = message;
-            setTimeout(() => {
+            // Clear any existing timeout to prevent messages from being cut short
+            if (messageTimeoutId) {
+                clearTimeout(messageTimeoutId);
+            }
+            messageTimeoutId = setTimeout(() => {
                 gameMessageEl.innerText = "";
             }, duration);
         }
@@ -215,8 +222,8 @@
             }
             unassignedWorkers--;
             if (res === 'steel') steelWorkers++;
-            if (res === 'food') foodWorkers++;
-            if (res === 'oil') oilWorkers++;
+            else if (res === 'food') foodWorkers++;
+            else if (res === 'oil') oilWorkers++;
             updateUI();
         }
 
@@ -290,7 +297,8 @@
             updateUI();
         }
 
-        function saveGame() {
+        // Added a parameter 'isManual' to differentiate between manual and auto-saves
+        function saveGame(isManual = false) {
             const gameState = {
                 manpower,
                 workers,
@@ -309,10 +317,14 @@
                 baseTargetFood,
                 baseTargetOil,
                 policy
-                // Multipliers and costs are derived from policy, no need to save explicitly
             };
             localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
-            showGameMessage("Game Saved! ✅", 2000);
+            if (isManual) {
+                showGameMessage("Game Saved! ✅", 2000);
+            } else {
+                // Auto-save message, shorter duration
+                showGameMessage("Auto-saving...", 500);
+            }
         }
 
         function loadGame() {
@@ -369,12 +381,13 @@
             }
         }
 
-
-        // Game loop - every second
         function startGameLoops() {
-            if (gameLoopInterval) clearInterval(gameLoopInterval); // Clear existing to prevent duplicates
-            if (dayLoopInterval) clearInterval(dayLoopInterval); // Clear existing to prevent duplicates
+            // Clear existing intervals to prevent duplicates if called multiple times
+            if (gameLoopInterval) clearInterval(gameLoopInterval);
+            if (dayLoopInterval) clearInterval(dayLoopInterval);
+            if (autoSaveInterval) clearInterval(autoSaveInterval); // Clear existing auto-save
 
+            // Game loop - every second (resource production and manpower gain)
             gameLoopInterval = setInterval(() => {
                 manpower += manpowerGain;
 
@@ -415,7 +428,8 @@
 
                 // Check overproduction and apply 50% excess penalty
                 const checkOverQuota = (actual, target) => {
-                    if (actual >= target * 2.5 && target > 0) { // Ensure target is not 0 for anarcho
+                    // Only apply penalty if a target exists and actual is significantly over
+                    if (target > 0 && actual >= target * 2.5) {
                         let excess = actual - target;
                         return Math.floor(excess * 0.5); // 50% of excess
                     }
@@ -452,12 +466,16 @@
 
                 updateUI();
             }, 60000);
-        }
 
+            // AUTO-SAVE every second
+            autoSaveInterval = setInterval(() => {
+                saveGame(false); // Call saveGame with isManual = false for auto-save
+            }, 1000);
+        }
 
         // Initial setup on page load
         loadGame(); // Try to load a game immediately
-        startGameLoops(); // Start the game loops
+        startGameLoops(); // Start all game loops (including auto-save)
     </script>
 </body>
 </html>
