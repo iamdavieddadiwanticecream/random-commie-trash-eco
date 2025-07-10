@@ -160,8 +160,8 @@
         const foodConsumptionRate = 0.1; // Food consumed per person per day
         const populationGrowthRate = 0.005; // 0.5% growth if food is sufficient
         const populationDeclineRate = 0.01; // 1% decline if food is insufficient
-        let populationManpowerMultiplier = 1; // Multiplier for manpower gained from population
-
+        let populationManpowerMultiplier = 1; // Multiplier for manpower gained from
+                // Population manpower multiplier (continued from previous part)
         let gameLoopInterval; // To store the interval ID for per-second updates
         let dayLoopInterval;  // To store the interval ID for per-minute updates
         let autoSaveInterval; // To store the interval ID for auto-saving
@@ -339,13 +339,8 @@
             localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
             if (isManual) {
                 showGameMessage("Game Saved! ✅", 2000);
-            } else {
-                // Auto-save message, shorter duration, only show if not currently showing another message
-                const gameMessageEl = document.getElementById("gameMessage");
-                if (gameMessageEl.innerText === "" || gameMessageEl.innerText === "Auto-saving...") {
-                     showGameMessage("Auto-saving...", 500);
-                }
             }
+            // Auto-save message removed for silent operation
         }
 
         function loadGame() {
@@ -413,7 +408,8 @@
             }
         }
 
-                function startGameLoops() {
+
+        function startGameLoops() {
             // Clear existing intervals to prevent duplicates if called multiple times
             if (gameLoopInterval) clearInterval(gameLoopInterval);
             if (dayLoopInterval) clearInterval(dayLoopInterval);
