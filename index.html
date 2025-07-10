@@ -58,6 +58,27 @@
         .reset-button button:hover {
             background-color: #c82333;
         }
+        .skip-buttons button {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .skip-buttons button:hover {
+            background-color: #218838;
+        }
+        .custom-skip {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .custom-skip input {
+            padding: 8px;
+            background-color: #333;
+            color: #eee;
+            border: 1px solid #777;
+            border-radius: 4px;
+            width: 80px;
+        }
     </style>
 </head>
 <body>
@@ -88,6 +109,21 @@
         <p>Current Policy: <strong id="currentPolicy">None</strong></p>
         <p id="policyEffects"></p>
     </div>
+
+    <div class="section">
+        <h2>Time Skip</h2>
+        <div class="skip-buttons">
+            <button onclick="skipDays(1)">Skip 1 Day</button>
+            <button onclick="skipDays(10)">Skip 10 Days</button>
+            <button onclick="skipDays(100)">Skip 100 Days</button>
+            <button onclick="skipDays(365)">Skip 1 Year</button>
+        </div>
+        <div class="custom-skip">
+            <input type="number" id="customYearsSkip" value="1" min="1" step="1">
+            <button onclick="skipCustomYears()">Skip Custom Years</button>
+        </div>
+    </div>
+
 
     <div class="section">
         <h2>Stats</h2>
@@ -160,8 +196,8 @@
         const foodConsumptionRate = 0.1; // Food consumed per person per day
         const populationGrowthRate = 0.005; // 0.5% growth if food is sufficient
         const populationDeclineRate = 0.01; // 1% decline if food is insufficient
-        let populationManpowerMultiplier = 1; // Multiplier for manpower gained from
-                // Population manpower multiplier (continued from previous part)
+        let populationManpowerMultiplier = 1; // Multiplier for manpower gained from population
+
         let gameLoopInterval; // To store the interval ID for per-second updates
         let dayLoopInterval;  // To store the interval ID for per-minute updates
         let autoSaveInterval; // To store the interval ID for auto-saving
@@ -253,7 +289,7 @@
             // Reset modifiers
             prodMultiplier = 1;
             workerCost = 10;
-            manpowerGain = 5; // Base gain from policy
+            manpowerGain = 5; // Base manpower gain from policy
             quotaMultiplier = 1;
             populationManpowerMultiplier = 1; // Default population manpower multiplier
 
@@ -408,133 +444,187 @@
             }
         }
 
+        // --- NEW TIME SKIP FUNCTIONS ---
 
-        function startGameLoops() {
-            // Clear existing intervals to prevent duplicates if called multiple times
-            if (gameLoopInterval) clearInterval(gameLoopInterval);
-            if (dayLoopInterval) clearInterval(dayLoopInterval);
-            if (autoSaveInterval) clearInterval(autoSaveInterval);
+        function skipDays(numDays) {
+            clearInterval(gameLoopInterval); // Stop current loops
+            clearInterval(dayLoopInterval);
+            clearInterval(autoSaveInterval);
 
-            // Game loop - every second (resource production and manpower gain)
-            gameLoopInterval = setInterval(() => {
-                // Calculate total manpower gain per tick
-                let currentManpowerGainFromPolicy = manpowerGain; // Base from policy (e.g., 5, 6, 2.5, 4, 8)
-                let manpowerFromPop = Math.floor(population / 100) * populationManpowerMultiplier;
-                manpower += currentManpowerGainFromPolicy + manpowerFromPop;
+            // Calculate accumulated production and manpower over skipped days
+            let accumulatedManpower = 0;
+            let accumulatedSteel = 0;
+            let accumulatedFood = 0;
+            let accumulatedOil = 0;
+            let accumulatedQuotaSteel = 0;
+            let accumulatedQuotaFood = 0;
+            let accumulatedQuotaOil = 0;
 
+            let currentPopulation = population; // Use a temporary variable for population changes
+
+            for (let i = 0; i < numDays; i++) {
+                // Manpower gain
+                let currentManpowerGainFromPolicy = manpowerGain;
+                let manpowerFromPop = Math.floor(currentPopulation / 100) * populationManpowerMultiplier;
+                accumulatedManpower += currentManpowerGainFromPolicy + manpowerFromPop;
+
+                // Resource production
                 let steelGain = steelWorkers * prodMultiplier;
                 let foodGain = foodWorkers * prodMultiplier;
                 let oilGain = oilWorkers * prodMultiplier;
 
-                // Maoism: food is always at 100% production (no reduction)
                 if (policy === "maoism") {
-                    foodGain = foodWorkers * 1; // full 100%
+                    foodGain = foodWorkers * 1;
                 }
-
-                // Anarcho special production
                 if (policy === "anarcho") {
                     foodGain *= 1.5;
                     oilGain *= 0.5;
                 }
 
-                steel += steelGain;
-                food += foodGain;
-                oil += oilGain;
+                accumulatedSteel += steelGain;
+                accumulatedFood += foodGain;
+                accumulatedOil += oilGain;
 
-                quotaSteel += steelGain;
-                quotaFood += foodGain;
-                quotaOil += oilGain;
+                // Quota accumulation (for penalty calculation later)
+                accumulatedQuotaSteel += steelGain;
+                accumulatedQuotaFood += foodGain;
+                accumulatedQuotaOil += oilGain;
 
-                updateUI();
-            }, 1000);
+                // Population dynamics for each skipped day
+                let foodNeededForPopulation = currentPopulation * foodConsumptionRate;
+                accumulatedFood -= foodNeededForPopulation; // Deduct food from the                // Population dynamics for each skipped day
+                let foodNeededForPopulation = currentPopulation * foodConsumptionRate;
+                accumulatedFood -= foodNeededForPopulation; // Deduct food from the
 
-            // New day every 60s
-            dayLoopInterval = setInterval(() => {
-                day++;
-
-                // Clear warning at day start
-                const warningEl = document.getElementById("warning");
-                warningEl.style.display = "none";
-                warningEl.innerText = ""; // Clear previous warnings
-
-                // --- Population and Food Dynamics ---
-                let foodNeededForPopulation = population * foodConsumptionRate;
-
-                // Consume food from reserves
-                food -= foodNeededForPopulation;
-
-                // Population dynamics based on food surplus/deficit
-                if (food < 0) {
-                    // Food deficit: population declines
-                    population *= (1 - populationDeclineRate);
-                    // Add warning about food shortage if it's the primary issue
-                    if (!warningEl.innerText.includes("Food shortage!")) {
-                        warningEl.style.display = "block";
-                        warningEl.innerText = (warningEl.innerText ? warningEl.innerText + " " : "") + "⚠️ Food shortage! Population declining.";
-                    }
-                } else {
-                    // Food surplus or met: population grows
-                    population *= (1 + populationGrowthRate);
+                // Adjust population based on food availability
+                if (accumulatedFood >= 0) { // If there's enough food, population grows
+                    currentPopulation *= (1 + populationGrowthRate);
+                } else { // If not enough food, population declines
+                    currentPopulation *= (1 - populationDeclineRate);
                 }
 
-                // Ensure population does not drop below 100 or become fractional for display
-                population = Math.max(100, Math.floor(population));
-                // Ensure food does not go below zero after consumption
-                food = Math.max(0, food);
+                // Ensure population doesn't go below 0 (though unlikely in this model)
+                currentPopulation = Math.max(0, currentPopulation);
 
+                day++; // Increment day for internal calculation
+            }
 
-                // Check overproduction and apply 50% excess penalty
-                const checkOverQuota = (actual, target) => {
-                    // Only apply penalty if a target exists and actual is significantly over
-                    if (target > 0 && actual >= target * 2.5) {
-                        let excess = actual - target;
-                        return Math.floor(excess * 0.5); // 50% of excess
-                    }
-                    return 0;
-                };
+            // Apply accumulated changes to actual game state
+            manpower += accumulatedManpower;
+            steel += accumulatedSteel;
+            food += accumulatedFood; // Food can be negative if starvation occurred
+            oil += accumulatedOil;
+            population = currentPopulation; // Update actual population
 
-                let steelPenalty = checkOverQuota(quotaSteel, targetSteel);
-                let foodPenalty = checkOverQuota(quotaFood, targetFood);
-                let oilPenalty = checkOverQuota(quotaOil, targetOil);
+            // Reset quotas after skipping days (as new targets will be set by selectPolicy)
+            quotaSteel = 0;
+            quotaFood = 0;
+            quotaOil = 0;
 
-                let penaltyOccurred = steelPenalty > 0 || foodPenalty > 0 || oilPenalty > 0;
+            // Re-evaluate policy effects to ensure quotas are updated for the new day
+            selectPolicy(); // This will also update targetSteel, targetFood, targetOil
 
-                // Remove resources and increase base quota
-                steel = Math.max(0, steel - steelPenalty);
-                food = Math.max(0, food - foodPenalty);
-                oil = Math.max(0, oil - oilPenalty);
+            updateUI(); // Update UI once after all calculations
+            showGameMessage(`Skipped ${numDays} days!`, 3000);
 
-                baseTargetSteel += 10 + steelPenalty;
-                baseTargetFood += 10 + foodPenalty;
-                baseTargetOil += 5 + oilPenalty;
-
-                // Reset daily quotas
-                quotaSteel = 0;
-                quotaFood = 0;
-                quotaOil = 0;
-
-                // Re-apply multiplier for policy effect
-                selectPolicy();
-
-                if (penaltyOccurred) {
-                    warningEl.style.display = "block";
-                    warningEl.innerText = (warningEl.innerText ? warningEl.innerText + " " : "") + "⚠️ Commissar demands more due to surplus! Daily quotas increased.";
-                }
-
-                updateUI();
-            }, 60000);
-
-            // AUTO-SAVE every second
-            autoSaveInterval = setInterval(() => {
-                saveGame(false); // Call saveGame with isManual = false for auto-save
-            }, 1000);
+            // Restart game loops
+            startGameLoops();
         }
 
-        // Initial setup on page load
-        // Call loadGame first, and it will call resetGame(false) if no save is found.
-        // Then, start the game loops.
-        loadGame();
-        startGameLoops();
+        function skipCustomYears() {
+            const years = parseInt(document.getElementById("customYearsSkip").value);
+            if (isNaN(years) || years <= 0) {
+                showGameMessage("Please enter a valid number of years to skip.", 2000);
+                return;
+            }
+            skipDays(years * 365);
+        }
+
+        // --- GAME LOOP ---
+        function productionTick() {
+            // Manpower gain
+            let currentManpowerGainFromPolicy = manpowerGain;
+            let manpowerFromPop = Math.floor(population / 100) * populationManpowerMultiplier;
+            manpower += currentManpowerGainFromPolicy + manpowerFromPop;
+
+            // Resource production
+            steel += steelWorkers * prodMultiplier;
+            food += foodWorkers * prodMultiplier;
+            oil += oilWorkers * prodMultiplier;
+
+            // Apply specific policy production modifiers
+            if (policy === "maoism") {
+                food = foodWorkers * 1; // Maoism food production
+            }
+            if (policy === "anarcho") {
+                food *= 1.5;
+                oil *= 0.5;
+            }
+
+            // Accumulate for daily quota
+            quotaSteel += steelWorkers * prodMultiplier;
+            quotaFood += foodWorkers * prodMultiplier;
+            quotaOil += oilWorkers * prodMultiplier;
+
+            updateUI();
+        }
+
+        function dailyUpdate() {
+            // Population consumption and growth
+            let foodNeededForPopulation = population * foodConsumptionRate;
+            food -= foodNeededForPopulation;
+
+            // Population changes based on food
+            if (food >= 0) { // If there's enough food, population grows
+                population *= (1 + populationGrowthRate);
+            } else { // If not enough food, population declines
+                population *= (1 - populationDeclineRate);
+            }
+
+            population = Math.max(0, population); // Population cannot go below 0
+
+            // Check quota and reset for next day
+            const met = quotaSteel >= targetSteel && quotaFood >= targetFood && quotaOil >= targetOil;
+            const warningEl = document.getElementById("warning");
+
+            if (!met) {
+                warningEl.innerText = "Quota Not Met! Population and Manpower will suffer if this continues!";
+                warningEl.style.display = 'block';
+                // Implement penalties if quota not met (e.g., population loss, reduced manpower gain)
+                population *= 0.99; // 1% population loss for not meeting quota
+                manpower *= 0.95; // 5% manpower loss
+            } else {
+                warningEl.innerText = "";
+                warningEl.style.display = 'none';
+                // Optional: bonuses for meeting quota consistently
+            }
+
+            // Reset daily quotas
+            quotaSteel = 0;
+            quotaFood = 0;
+            quotaOil = 0;
+
+            day++; // Increment day count
+            updateUI();
+        }
+
+        function startGameLoops() {
+            // Production updates every second
+            gameLoopInterval = setInterval(productionTick, 1000);
+            // Daily updates every 5 seconds (simulating end of day)
+            dayLoopInterval = setInterval(dailyUpdate, 5000);
+            // Auto-save every 30 seconds
+            autoSaveInterval = setInterval(() => saveGame(false), 30000);
+        }
+
+
+        // Initialize game on load
+        window.onload = () => {
+            selectPolicy(); // Set initial policy effects
+            loadGame();     // Try to load a saved game
+            updateUI();     // Update UI with initial/loaded state
+            startGameLoops(); // Start the game loops
+        };
     </script>
 </body>
 </html>
