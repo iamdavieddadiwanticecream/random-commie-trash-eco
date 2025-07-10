@@ -25,6 +25,12 @@
         .not-met {
             color: red;
         }
+        #warning {
+            color: orange;
+            font-weight: bold;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -86,6 +92,7 @@
             <li>Oil: <span id="quotaOil">0</span>/<span id="targetOil">50</span></li>
         </ul>
         <p id="quotaStatus" class="not-met">🚫 Quota Not Met</p>
+        <p id="warning"></p>
     </div>
 
     <script>
@@ -220,15 +227,48 @@
         // New day every 60s
         setInterval(() => {
             day++;
+
+            // Clear warning at day start
+            const warningEl = document.getElementById("warning");
+            warningEl.style.display = "none";
+            warningEl.innerText = "";
+
+            // Check overproduction and apply 50% excess penalty
+            const checkOverQuota = (actual, target) => {
+                if (actual >= target * 2.5) {
+                    let excess = actual - target;
+                    return Math.floor(excess * 0.5); // 50% of excess
+                }
+                return 0;
+            };
+
+            let steelPenalty = checkOverQuota(quotaSteel, targetSteel);
+            let foodPenalty = checkOverQuota(quotaFood, targetFood);
+            let oilPenalty = checkOverQuota(quotaOil, targetOil);
+
+            let penaltyOccurred = steelPenalty > 0 || foodPenalty > 0 || oilPenalty > 0;
+
+            // Remove resources and increase base quota
+            steel = Math.max(0, steel - steelPenalty);
+            food = Math.max(0, food - foodPenalty);
+            oil = Math.max(0, oil - oilPenalty);
+
+            baseTargetSteel += 10 + steelPenalty;
+            baseTargetFood += 10 + foodPenalty;
+            baseTargetOil += 5 + oilPenalty;
+
+            // Reset daily quotas
             quotaSteel = 0;
             quotaFood = 0;
             quotaOil = 0;
 
-            baseTargetSteel += 10;
-            baseTargetFood += 10;
-            baseTargetOil += 5;
+            // Re-apply multiplier for policy effect
+            selectPolicy();
 
-            selectPolicy(); // Recalculate quota based on current policy
+            if (penaltyOccurred) {
+                warningEl.style.display = "block";
+                warningEl.innerText = "⚠️ Commissar demands more due to surplus! Daily quotas increased.";
+            }
 
             updateUI();
         }, 60000);
