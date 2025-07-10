@@ -171,8 +171,7 @@
         <p id="quotaStatus" class="not-met">🚫 Quota Not Met</p>
         <p id="warning"></p>
     </div>
-
-    <script>
+        <script>
         let manpower = 0;
         let workers = 0;
         let unassignedWorkers = 0;
@@ -471,7 +470,7 @@
                 // Resource production
                 let steelGain = steelWorkers * prodMultiplier;
                 let foodGain = foodWorkers * prodMultiplier;
-                let oilGain = oilWorkers * prodMultiplier;
+                let oilGain = oilWorkers * prodMultiplier; // Define oilGain here
 
                 if (policy === "maoism") {
                     foodGain = foodWorkers * 1;
@@ -492,9 +491,7 @@
 
                 // Population dynamics for each skipped day
                 let foodNeededForPopulation = currentPopulation * foodConsumptionRate;
-                accumulatedFood -= foodNeededForPopulation; // Deduct food from the                // Population dynamics for each skipped day
-                let foodNeededForPopulation = currentPopulation * foodConsumptionRate;
-                accumulatedFood -= foodNeededForPopulation; // Deduct food from the
+                accumulatedFood -= foodNeededForPopulation; 
 
                 // Adjust population based on food availability
                 if (accumulatedFood >= 0) { // If there's enough food, population grows
@@ -548,23 +545,27 @@
             manpower += currentManpowerGainFromPolicy + manpowerFromPop;
 
             // Resource production
-            steel += steelWorkers * prodMultiplier;
-            food += foodWorkers * prodMultiplier;
-            oil += oilWorkers * prodMultiplier;
+            let steelGain = steelWorkers * prodMultiplier;
+            let foodGain = foodWorkers * prodMultiplier;
+            let oilGain = oilWorkers * prodMultiplier;
 
             // Apply specific policy production modifiers
             if (policy === "maoism") {
-                food = foodWorkers * 1; // Maoism food production
+                foodGain = foodWorkers * 1; // Maoism food production
             }
             if (policy === "anarcho") {
-                food *= 1.5;
-                oil *= 0.5;
+                foodGain *= 1.5;
+                oilGain *= 0.5;
             }
 
+            steel += steelGain;
+            food += foodGain;
+            oil += oilGain;
+
             // Accumulate for daily quota
-            quotaSteel += steelWorkers * prodMultiplier;
-            quotaFood += foodWorkers * prodMultiplier;
-            quotaOil += oilWorkers * prodMultiplier;
+            quotaSteel += steelGain;
+            quotaFood += foodGain;
+            quotaOil += oilGain;
 
             updateUI();
         }
@@ -609,6 +610,11 @@
         }
 
         function startGameLoops() {
+            // Clear existing intervals before starting new ones to prevent duplicates
+            clearInterval(gameLoopInterval);
+            clearInterval(dayLoopInterval);
+            clearInterval(autoSaveInterval);
+
             // Production updates every second
             gameLoopInterval = setInterval(productionTick, 1000);
             // Daily updates every 5 seconds (simulating end of day)
