@@ -12,7 +12,7 @@
         .section {
             border: 1px solid #555;
             padding: 10px;
-            margin-bottom: 10px;22;
+            margin-bottom: 10px;
         }
         button, select {
             margin: 4px;
@@ -30,6 +30,11 @@
             margin-top: 10px;
             display: none;
         }
+        #policyEffects {
+            margin-top: 10px;
+            font-style: italic;
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
@@ -44,8 +49,11 @@
             <option value="maoism">Maoism</option>
             <option value="anarcho">Anarcho-Communism</option>
             <option value="leninism">Leninism</option>
+            <option value="trotskyism">Trotskyism</option>
+            <option value="kronstadtism">Kronstadtism</option>
         </select>
         <p>Current Policy: <strong id="currentPolicy">None</strong></p>
+        <p id="policyEffects"></p>
     </div>
 
     <div class="section">
@@ -137,6 +145,7 @@
             document.getElementById("currentPolicy").innerText = policy.charAt(0).toUpperCase() + policy.slice(1);
             document.getElementById("workerCost").innerText = workerCost;
 
+            // Show if quota met or not
             const met = quotaSteel >= targetSteel && quotaFood >= targetFood && quotaOil >= targetOil;
             const status = document.getElementById("quotaStatus");
             status.innerText = met ? "✅ Quota Met! Glory to the Motherland!" : "🚫 Quota Not Met";
@@ -177,24 +186,52 @@
             manpowerGain = 5;
             quotaMultiplier = 1;
 
-            if (policy === "marxism") {
-                prodMultiplier = 1.2;
-            } else if (policy === "stalinism") {
-                quotaMultiplier = 1.5;
-                manpowerGain = 6;
-            } else if (policy === "maoism") {
-                workerCost = 0;
-                prodMultiplier = 0.7;
-            } else if (policy === "anarcho") {
-                quotaMultiplier = 0; // no quotas
-            } else if (policy === "leninism") {
-                prodMultiplier = 1.1;
+            let effectsText = "";
+
+            switch(policy) {
+                case "marxism":
+                    prodMultiplier = 1.2;
+                    effectsText = "📈 +20% output";
+                    break;
+                case "stalinism":
+                    quotaMultiplier = 1.5;
+                    manpowerGain = 6;
+                    effectsText = "📋 +50% quotas, 👨‍🌾 +6 manpower/tick";
+                    break;
+                case "maoism":
+                    workerCost = 1;           // Worker cost is 1 manpower
+                    manpowerGain = 2.5;       // +2.5 manpower/tick
+                    prodMultiplier = 0.675;   // -32.5% production (1 - 0.325)
+                    effectsText = "➖ Worker cost 1 manpower, 👨‍🌾 +2.5 manpower/tick, -32.5% output, Food production at 100%";
+                    break;
+                case "anarcho":
+                    quotaMultiplier = 0; // no quotas
+                    effectsText = "🚫 No quotas, +50% food production, -50% oil production";
+                    break;
+                case "leninism":
+                    prodMultiplier = 1.1;
+                    effectsText = "📈 +10% output";
+                    break;
+                case "trotskyism":
+                    prodMultiplier = 1.3;
+                    manpowerGain = 4;
+                    effectsText = "🚀 +30% output, 👨‍🌾 -1 manpower/tick";
+                    break;
+                case "kronstadtism":
+                    manpowerGain = 8;
+                    prodMultiplier = 1; // no nerf now
+                    effectsText = "👨‍🌾 +8 manpower/tick, ⚔️ No production penalty";
+                    break;
+                default:
+                    effectsText = "";
             }
 
             // Apply quotas
             targetSteel = Math.floor(baseTargetSteel * quotaMultiplier);
             targetFood = Math.floor(baseTargetFood * quotaMultiplier);
             targetOil = Math.floor(baseTargetOil * quotaMultiplier);
+
+            document.getElementById("policyEffects").innerText = effectsText;
 
             updateUI();
         }
@@ -207,6 +244,12 @@
             let foodGain = foodWorkers * prodMultiplier;
             let oilGain = oilWorkers * prodMultiplier;
 
+            // Maoism: food is always at 100% production (no reduction)
+            if (policy === "maoism") {
+                foodGain = foodWorkers * 1; // full 100%
+            }
+
+            // Anarcho special production
             if (policy === "anarcho") {
                 foodGain *= 1.5;
                 oilGain *= 0.5;
