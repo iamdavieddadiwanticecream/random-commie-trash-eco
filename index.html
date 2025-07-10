@@ -16,6 +16,15 @@
         }
         button, select {
             margin: 4px;
+            padding: 8px 12px;
+            background-color: #333;
+            color: #eee;
+            border: 1px solid #777;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover, select:hover {
+            background-color: #555;
         }
         .met {
             color: lightgreen;
@@ -35,10 +44,34 @@
             font-style: italic;
             color: #ccc;
         }
+        .save-load-buttons button {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .save-load-buttons button:hover {
+            background-color: #0056b3;
+        }
+        .reset-button button {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .reset-button button:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
     <h1>☭ USSR Economy Simulator ☭</h1>
+
+    <div class="section save-load-buttons">
+        <h2>Game Management</h2>
+        <button onclick="saveGame()">Save Game</button>
+        <button onclick="loadGame()">Load Game</button>
+        <div class="reset-button" style="margin-top: 10px;">
+            <button onclick="resetGame()">Reset Game</button>
+        </div>
+        <p id="gameMessage" style="color: yellow;"></p>
+    </div>
 
     <div class="section">
         <h2>Choose Policy</h2>
@@ -71,20 +104,20 @@
         <h2>Assign Workers</h2>
         <p>Unassigned Workers: <span id="unassigned">0</span></p>
 
-        <p>Steel: <span id="steel">0</span> 
-            <button onclick="assignWorker('steel')">+1</button> 
+        <p>Steel: <span id="steel">0</span>
+            <button onclick="assignWorker('steel')">+1</button>
             <button onclick="unassignWorker('steel')">-1</button>
             (Assigned: <span id="steelWorkers">0</span>)
         </p>
 
-        <p>Food: <span id="food">0</span> 
-            <button onclick="assignWorker('food')">+1</button> 
+        <p>Food: <span id="food">0</span>
+            <button onclick="assignWorker('food')">+1</button>
             <button onclick="unassignWorker('food')">-1</button>
             (Assigned: <span id="foodWorkers">0</span>)
         </p>
 
-        <p>Oil: <span id="oil">0</span> 
-            <button onclick="assignWorker('oil')">+1</button> 
+        <p>Oil: <span id="oil">0</span>
+            <button onclick="assignWorker('oil')">+1</button>
             <button onclick="unassignWorker('oil')">-1</button>
             (Assigned: <span id="oilWorkers">0</span>)
         </p>
@@ -121,8 +154,19 @@
         let manpowerGain = 5;
         let quotaMultiplier = 1;
 
+        let gameLoopInterval; // To store the interval ID
+        let dayLoopInterval; // To store the interval ID
+
         function display(value) {
             return (value > 0 && value < 0.01) ? "0.01" : value.toFixed(2);
+        }
+
+        function showGameMessage(message, duration = 3000) {
+            const gameMessageEl = document.getElementById("gameMessage");
+            gameMessageEl.innerText = message;
+            setTimeout(() => {
+                gameMessageEl.innerText = "";
+            }, duration);
         }
 
         function updateUI() {
@@ -144,6 +188,7 @@
             document.getElementById("dayCount").innerText = day;
             document.getElementById("currentPolicy").innerText = policy.charAt(0).toUpperCase() + policy.slice(1);
             document.getElementById("workerCost").innerText = workerCost;
+            document.getElementById("policySelect").value = policy; // Keep dropdown synced
 
             // Show if quota met or not
             const met = quotaSteel >= targetSteel && quotaFood >= targetFood && quotaOil >= targetOil;
@@ -158,11 +203,16 @@
                 workers++;
                 unassignedWorkers++;
                 updateUI();
+            } else {
+                showGameMessage("Not enough manpower to hire a worker!", 2000);
             }
         }
 
         function assignWorker(res) {
-            if (unassignedWorkers <= 0) return;
+            if (unassignedWorkers <= 0) {
+                showGameMessage("No unassigned workers available!", 2000);
+                return;
+            }
             unassignedWorkers--;
             if (res === 'steel') steelWorkers++;
             if (res === 'food') foodWorkers++;
@@ -172,8 +222,12 @@
 
         function unassignWorker(res) {
             if (res === 'steel' && steelWorkers > 0) { steelWorkers--; unassignedWorkers++; }
-            if (res === 'food' && foodWorkers > 0) { foodWorkers--; unassignedWorkers++; }
-            if (res === 'oil' && oilWorkers > 0) { oilWorkers--; unassignedWorkers++; }
+            else if (res === 'food' && foodWorkers > 0) { foodWorkers--; unassignedWorkers++; }
+            else if (res === 'oil' && oilWorkers > 0) { oilWorkers--; unassignedWorkers++; }
+            else {
+                showGameMessage("No workers assigned to " + res + " to unassign!", 2000);
+                return;
+            }
             updateUI();
         }
 
@@ -236,86 +290,174 @@
             updateUI();
         }
 
-        // Game loop - every second
-        setInterval(() => {
-            manpower += manpowerGain;
-
-            let steelGain = steelWorkers * prodMultiplier;
-            let foodGain = foodWorkers * prodMultiplier;
-            let oilGain = oilWorkers * prodMultiplier;
-
-            // Maoism: food is always at 100% production (no reduction)
-            if (policy === "maoism") {
-                foodGain = foodWorkers * 1; // full 100%
-            }
-
-            // Anarcho special production
-            if (policy === "anarcho") {
-                foodGain *= 1.5;
-                oilGain *= 0.5;
-            }
-
-            steel += steelGain;
-            food += foodGain;
-            oil += oilGain;
-
-            quotaSteel += steelGain;
-            quotaFood += foodGain;
-            quotaOil += oilGain;
-
-            updateUI();
-        }, 1000);
-
-        // New day every 60s
-        setInterval(() => {
-            day++;
-
-            // Clear warning at day start
-            const warningEl = document.getElementById("warning");
-            warningEl.style.display = "none";
-            warningEl.innerText = "";
-
-            // Check overproduction and apply 50% excess penalty
-            const checkOverQuota = (actual, target) => {
-                if (actual >= target * 2.5) {
-                    let excess = actual - target;
-                    return Math.floor(excess * 0.5); // 50% of excess
-                }
-                return 0;
+        function saveGame() {
+            const gameState = {
+                manpower,
+                workers,
+                unassignedWorkers,
+                steel,
+                food,
+                oil,
+                steelWorkers,
+                foodWorkers,
+                oilWorkers,
+                day,
+                quotaSteel,
+                quotaFood,
+                quotaOil,
+                baseTargetSteel,
+                baseTargetFood,
+                baseTargetOil,
+                policy
+                // Multipliers and costs are derived from policy, no need to save explicitly
             };
+            localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
+            showGameMessage("Game Saved! ✅", 2000);
+        }
 
-            let steelPenalty = checkOverQuota(quotaSteel, targetSteel);
-            let foodPenalty = checkOverQuota(quotaFood, targetFood);
-            let oilPenalty = checkOverQuota(quotaOil, targetOil);
+        function loadGame() {
+            const savedState = localStorage.getItem('ussrEconomySave');
+            if (savedState) {
+                const gameState = JSON.parse(savedState);
 
-            let penaltyOccurred = steelPenalty > 0 || foodPenalty > 0 || oilPenalty > 0;
+                manpower = gameState.manpower;
+                workers = gameState.workers;
+                unassignedWorkers = gameState.unassignedWorkers;
+                steel = gameState.steel;
+                food = gameState.food;
+                oil = gameState.oil;
+                steelWorkers = gameState.steelWorkers;
+                foodWorkers = gameState.foodWorkers;
+                oilWorkers = gameState.oilWorkers;
+                day = gameState.day;
+                quotaSteel = gameState.quotaSteel;
+                quotaFood = gameState.quotaFood;
+                quotaOil = gameState.quotaOil;
+                baseTargetSteel = gameState.baseTargetSteel;
+                baseTargetFood = gameState.baseTargetFood;
+                baseTargetOil = gameState.baseTargetOil;
+                policy = gameState.policy;
 
-            // Remove resources and increase base quota
-            steel = Math.max(0, steel - steelPenalty);
-            food = Math.max(0, food - foodPenalty);
-            oil = Math.max(0, oil - oilPenalty);
-
-            baseTargetSteel += 10 + steelPenalty;
-            baseTargetFood += 10 + foodPenalty;
-            baseTargetOil += 5 + oilPenalty;
-
-            // Reset daily quotas
-            quotaSteel = 0;
-            quotaFood = 0;
-            quotaOil = 0;
-
-            // Re-apply multiplier for policy effect
-            selectPolicy();
-
-            if (penaltyOccurred) {
-                warningEl.style.display = "block";
-                warningEl.innerText = "⚠️ Commissar demands more due to surplus! Daily quotas increased.";
+                // Reapply policy effects and update UI
+                selectPolicy();
+                updateUI();
+                showGameMessage("Game Loaded! 📂", 2000);
+            } else {
+                showGameMessage("No saved game found!", 2000);
             }
+        }
 
-            updateUI();
-        }, 60000);
+        function resetGame() {
+            if (confirm("Are you sure you want to reset the game? All progress will be lost.")) {
+                manpower = 0;
+                workers = 0;
+                unassignedWorkers = 0;
 
-        updateUI();
+                steel = 0; food = 0; oil = 0;
+                steelWorkers = 0; foodWorkers = 0; oilWorkers = 0;
+
+                day = 1;
+                quotaSteel = 0; quotaFood = 0; quotaOil = 0;
+                baseTargetSteel = 100; baseTargetFood = 80; baseTargetOil = 50;
+
+                policy = "none";
+
+                localStorage.removeItem('ussrEconomySave');
+                selectPolicy(); // This will reset multipliers and target quotas
+                updateUI();
+                showGameMessage("Game Reset! 🆕", 2000);
+            }
+        }
+
+
+        // Game loop - every second
+        function startGameLoops() {
+            if (gameLoopInterval) clearInterval(gameLoopInterval); // Clear existing to prevent duplicates
+            if (dayLoopInterval) clearInterval(dayLoopInterval); // Clear existing to prevent duplicates
+
+            gameLoopInterval = setInterval(() => {
+                manpower += manpowerGain;
+
+                let steelGain = steelWorkers * prodMultiplier;
+                let foodGain = foodWorkers * prodMultiplier;
+                let oilGain = oilWorkers * prodMultiplier;
+
+                // Maoism: food is always at 100% production (no reduction)
+                if (policy === "maoism") {
+                    foodGain = foodWorkers * 1; // full 100%
+                }
+
+                // Anarcho special production
+                if (policy === "anarcho") {
+                    foodGain *= 1.5;
+                    oilGain *= 0.5;
+                }
+
+                steel += steelGain;
+                food += foodGain;
+                oil += oilGain;
+
+                quotaSteel += steelGain;
+                quotaFood += foodGain;
+                quotaOil += oilGain;
+
+                updateUI();
+            }, 1000);
+
+            // New day every 60s
+            dayLoopInterval = setInterval(() => {
+                day++;
+
+                // Clear warning at day start
+                const warningEl = document.getElementById("warning");
+                warningEl.style.display = "none";
+                warningEl.innerText = "";
+
+                // Check overproduction and apply 50% excess penalty
+                const checkOverQuota = (actual, target) => {
+                    if (actual >= target * 2.5 && target > 0) { // Ensure target is not 0 for anarcho
+                        let excess = actual - target;
+                        return Math.floor(excess * 0.5); // 50% of excess
+                    }
+                    return 0;
+                };
+
+                let steelPenalty = checkOverQuota(quotaSteel, targetSteel);
+                let foodPenalty = checkOverQuota(quotaFood, targetFood);
+                let oilPenalty = checkOverQuota(quotaOil, targetOil);
+
+                let penaltyOccurred = steelPenalty > 0 || foodPenalty > 0 || oilPenalty > 0;
+
+                // Remove resources and increase base quota
+                steel = Math.max(0, steel - steelPenalty);
+                food = Math.max(0, food - foodPenalty);
+                oil = Math.max(0, oil - oilPenalty);
+
+                baseTargetSteel += 10 + steelPenalty;
+                baseTargetFood += 10 + foodPenalty;
+                baseTargetOil += 5 + oilPenalty;
+
+                // Reset daily quotas
+                quotaSteel = 0;
+                quotaFood = 0;
+                quotaOil = 0;
+
+                // Re-apply multiplier for policy effect
+                selectPolicy();
+
+                if (penaltyOccurred) {
+                    warningEl.style.display = "block";
+                    warningEl.innerText = "⚠️ Commissar demands more due to surplus! Daily quotas increased.";
+                }
+
+                updateUI();
+            }, 60000);
+        }
+
+
+        // Initial setup on page load
+        loadGame(); // Try to load a game immediately
+        startGameLoops(); // Start the game loops
     </script>
 </body>
 </html>
