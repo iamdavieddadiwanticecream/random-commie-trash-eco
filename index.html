@@ -93,6 +93,7 @@
         <h2>Stats</h2>
         <p>Manpower: <span id="manpower">0</span></p>
         <p>Workers: <span id="workers">0</span></p>
+        <p>Population: <span id="population">0</span></p>
     </div>
 
     <div class="section">
@@ -151,8 +152,15 @@
         let policy = "none";
         let prodMultiplier = 1;
         let workerCost = 10;
-        let manpowerGain = 5;
+        let manpowerGain = 5; // Base manpower gain from policy
         let quotaMultiplier = 1;
+
+        // New population variables
+        let population = 500; // Starting population
+        const foodConsumptionRate = 0.1; // Food consumed per person per day
+        const populationGrowthRate = 0.005; // 0.5% growth if food is sufficient
+        const populationDeclineRate = 0.01; // 1% decline if food is insufficient
+        let populationManpowerMultiplier = 1; // Multiplier for manpower gained from population
 
         let gameLoopInterval; // To store the interval ID for per-second updates
         let dayLoopInterval;  // To store the interval ID for per-minute updates
@@ -196,6 +204,7 @@
             document.getElementById("currentPolicy").innerText = policy.charAt(0).toUpperCase() + policy.slice(1);
             document.getElementById("workerCost").innerText = workerCost;
             document.getElementById("policySelect").value = policy; // Keep dropdown synced
+            document.getElementById("population").innerText = Math.floor(population); // Display population as whole number
 
             // Show if quota met or not
             const met = quotaSteel >= targetSteel && quotaFood >= targetFood && quotaOil >= targetOil;
@@ -244,44 +253,52 @@
             // Reset modifiers
             prodMultiplier = 1;
             workerCost = 10;
-            manpowerGain = 5;
+            manpowerGain = 5; // Base gain from policy
             quotaMultiplier = 1;
+            populationManpowerMultiplier = 1; // Default population manpower multiplier
 
             let effectsText = "";
 
             switch(policy) {
                 case "marxism":
                     prodMultiplier = 1.2;
-                    effectsText = "📈 +20% output";
+                    populationManpowerMultiplier = 1.15; // 15% more manpower from population
+                    effectsText = "📈 +20% output, 👨‍👩‍👧‍👦 +15% manpower from population";
                     break;
                 case "stalinism":
                     quotaMultiplier = 1.5;
                     manpowerGain = 6;
-                    effectsText = "📋 +50% quotas, 👨‍🌾 +6 manpower/tick";
+                    populationManpowerMultiplier = 1.5; // High mobilization
+                    effectsText = "📋 +50% quotas, 👨‍🌾 +6 base manpower/tick, 👨‍👩‍👧‍👦 +50% manpower from population";
                     break;
                 case "maoism":
                     workerCost = 1;           // Worker cost is 1 manpower
                     manpowerGain = 2.5;       // +2.5 manpower/tick
                     prodMultiplier = 0.675;   // -32.5% production (1 - 0.325)
-                    effectsText = "➖ Worker cost 1 manpower, 👨‍🌾 +2.5 manpower/tick, -32.5% output, Food production at 100%";
+                    populationManpowerMultiplier = 2.0; // Extreme mass mobilization
+                    effectsText = "➖ Worker cost 1 manpower, 👨‍🌾 +2.5 base manpower/tick, -32.5% output, Food production at 100%, 👨‍👩‍👧‍👦 +100% manpower from population";
                     break;
                 case "anarcho":
                     quotaMultiplier = 0; // no quotas
-                    effectsText = "🚫 No quotas, +50% food production, -50% oil production";
+                    populationManpowerMultiplier = 0.75; // Less centralized control
+                    effectsText = "🚫 No quotas, +50% food production, -50% oil production, 👨‍👩‍👧‍👦 -25% manpower from population";
                     break;
                 case "leninism":
                     prodMultiplier = 1.1;
-                    effectsText = "📈 +10% output";
+                    populationManpowerMultiplier = 1.05; // Small bonus
+                    effectsText = "📈 +10% output, 👨‍👩‍👧‍👦 +5% manpower from population";
                     break;
                 case "trotskyism":
                     prodMultiplier = 1.3;
                     manpowerGain = 4;
-                    effectsText = "🚀 +30% output, 👨‍🌾 -1 manpower/tick";
+                    populationManpowerMultiplier = 1.25; // Efficient use of resources for the cause
+                    effectsText = "🚀 +30% output, 👨‍🌾 -1 base manpower/tick, 👨‍👩‍👧‍👦 +25% manpower from population";
                     break;
                 case "kronstadtism":
                     manpowerGain = 8;
                     prodMultiplier = 1; // no nerf now
-                    effectsText = "👨‍🌾 +8 manpower/tick, ⚔️ No production penalty";
+                    populationManpowerMultiplier = 0.9; // More voluntary, less forced
+                    effectsText = "👨‍🌾 +8 base manpower/tick, ⚔️ No production penalty, 👨‍👩‍👧‍👦 -10% manpower from population";
                     break;
                 default:
                     effectsText = "";
@@ -316,14 +333,18 @@
                 baseTargetSteel,
                 baseTargetFood,
                 baseTargetOil,
-                policy
+                policy,
+                population // Save population
             };
             localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
             if (isManual) {
                 showGameMessage("Game Saved! ✅", 2000);
             } else {
-                // Auto-save message, shorter duration
-                showGameMessage("Auto-saving...", 500);
+                // Auto-save message, shorter duration, only show if not currently showing another message
+                const gameMessageEl = document.getElementById("gameMessage");
+                if (gameMessageEl.innerText === "" || gameMessageEl.innerText === "Auto-saving...") {
+                     showGameMessage("Auto-saving...", 500);
+                }
             }
         }
 
@@ -349,18 +370,26 @@
                 baseTargetFood = gameState.baseTargetFood;
                 baseTargetOil = gameState.baseTargetOil;
                 policy = gameState.policy;
+                population = gameState.population || 500; // Load population, default to 500 if not found (for old saves)
+
 
                 // Reapply policy effects and update UI
-                selectPolicy();
+                selectPolicy(); // This will recalculate multipliers like populationManpowerMultiplier
                 updateUI();
                 showGameMessage("Game Loaded! 📂", 2000);
             } else {
-                showGameMessage("No saved game found!", 2000);
+                showGameMessage("No saved game found! Starting new game.", 2000);
+                resetGame(false); // Start a new game if no save found, without prompt
             }
         }
 
-        function resetGame() {
-            if (confirm("Are you sure you want to reset the game? All progress will be lost.")) {
+        function resetGame(promptUser = true) {
+            let confirmed = true;
+            if (promptUser) {
+                confirmed = confirm("Are you sure you want to reset the game? All progress will be lost.");
+            }
+
+            if (confirmed) {
                 manpower = 0;
                 workers = 0;
                 unassignedWorkers = 0;
@@ -373,23 +402,29 @@
                 baseTargetSteel = 100; baseTargetFood = 80; baseTargetOil = 50;
 
                 policy = "none";
+                population = 500; // Reset population
 
                 localStorage.removeItem('ussrEconomySave');
                 selectPolicy(); // This will reset multipliers and target quotas
                 updateUI();
-                showGameMessage("Game Reset! 🆕", 2000);
+                if (promptUser) { // Only show message if manually reset
+                    showGameMessage("Game Reset! 🆕", 2000);
+                }
             }
         }
 
-        function startGameLoops() {
+                function startGameLoops() {
             // Clear existing intervals to prevent duplicates if called multiple times
             if (gameLoopInterval) clearInterval(gameLoopInterval);
             if (dayLoopInterval) clearInterval(dayLoopInterval);
-            if (autoSaveInterval) clearInterval(autoSaveInterval); // Clear existing auto-save
+            if (autoSaveInterval) clearInterval(autoSaveInterval);
 
             // Game loop - every second (resource production and manpower gain)
             gameLoopInterval = setInterval(() => {
-                manpower += manpowerGain;
+                // Calculate total manpower gain per tick
+                let currentManpowerGainFromPolicy = manpowerGain; // Base from policy (e.g., 5, 6, 2.5, 4, 8)
+                let manpowerFromPop = Math.floor(population / 100) * populationManpowerMultiplier;
+                manpower += currentManpowerGainFromPolicy + manpowerFromPop;
 
                 let steelGain = steelWorkers * prodMultiplier;
                 let foodGain = foodWorkers * prodMultiplier;
@@ -424,7 +459,33 @@
                 // Clear warning at day start
                 const warningEl = document.getElementById("warning");
                 warningEl.style.display = "none";
-                warningEl.innerText = "";
+                warningEl.innerText = ""; // Clear previous warnings
+
+                // --- Population and Food Dynamics ---
+                let foodNeededForPopulation = population * foodConsumptionRate;
+
+                // Consume food from reserves
+                food -= foodNeededForPopulation;
+
+                // Population dynamics based on food surplus/deficit
+                if (food < 0) {
+                    // Food deficit: population declines
+                    population *= (1 - populationDeclineRate);
+                    // Add warning about food shortage if it's the primary issue
+                    if (!warningEl.innerText.includes("Food shortage!")) {
+                        warningEl.style.display = "block";
+                        warningEl.innerText = (warningEl.innerText ? warningEl.innerText + " " : "") + "⚠️ Food shortage! Population declining.";
+                    }
+                } else {
+                    // Food surplus or met: population grows
+                    population *= (1 + populationGrowthRate);
+                }
+
+                // Ensure population does not drop below 100 or become fractional for display
+                population = Math.max(100, Math.floor(population));
+                // Ensure food does not go below zero after consumption
+                food = Math.max(0, food);
+
 
                 // Check overproduction and apply 50% excess penalty
                 const checkOverQuota = (actual, target) => {
@@ -461,7 +522,7 @@
 
                 if (penaltyOccurred) {
                     warningEl.style.display = "block";
-                    warningEl.innerText = "⚠️ Commissar demands more due to surplus! Daily quotas increased.";
+                    warningEl.innerText = (warningEl.innerText ? warningEl.innerText + " " : "") + "⚠️ Commissar demands more due to surplus! Daily quotas increased.";
                 }
 
                 updateUI();
@@ -474,8 +535,10 @@
         }
 
         // Initial setup on page load
-        loadGame(); // Try to load a game immediately
-        startGameLoops(); // Start all game loops (including auto-save)
+        // Call loadGame first, and it will call resetGame(false) if no save is found.
+        // Then, start the game loops.
+        loadGame();
+        startGameLoops();
     </script>
 </body>
 </html>
