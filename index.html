@@ -32,6 +32,7 @@
       flex: 1 1 300px;
       max-width: 480px;
       box-sizing: border-box;
+      position: relative; /* Needed for absolute positioning of collapse button */
     }
 
     .section h2 {
@@ -39,6 +40,40 @@
       margin-top: 0;
       border-bottom: 1px solid #333;
       padding-bottom: 5px;
+      display: flex; /* To align heading and button */
+      justify-content: space-between; /* Push button to the right */
+      align-items: center; /* Vertically align them */
+    }
+
+    .section h2 button.collapse-button {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 1.2em;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+      line-height: 1; /* Prevent extra space */
+    }
+
+    .section h2 button.collapse-button:hover {
+      color: #eee;
+    }
+
+    .section-content {
+      max-height: 500px; /* Max height when open */
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+      opacity: 1;
+    }
+
+    .section-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-top: 0;
+      margin-bottom: 0;
     }
 
     button, select, input {
@@ -78,6 +113,7 @@
       color: orange;
       font-weight: bold;
       display: none;
+      margin-top: 10px;
     }
 
     @media (max-width: 800px) {
@@ -93,88 +129,123 @@
 
   <div class="container">
     <div class="section">
-      <h2>🎮 Controls</h2>
-      <button onclick="saveGame(true)">💾 Save</button>
-      <button onclick="loadGame()">📂 Load</button>
-      <button onclick="resetGame()">🧨 Reset</button>
-      <p id="gameMessage" style="color: yellow;"></p>
-    </div>
-
-    <div class="section">
-      <h2>📜 Policy</h2>
-      <select id="policySelect" onchange="selectPolicy()">
-        <option value="none">-- Select Policy --</option>
-        <option value="marxism">Marxism</option>
-        <option value="stalinism">Stalinism</option>
-        <option value="maoism">Maoism</option>
-        <option value="anarcho">Anarcho-Communism</option>
-        <option value="leninism">Leninism</option>
-        <option value="trotskyism">Trotskyism</option>
-        <option value="kronstadtism">Kronstadtism</option>
-      </select>
-      <p><strong>Current:</strong> <span id="currentPolicy">None</span></p>
-      <p id="policyEffects" style="font-style: italic; font-size: 0.9em;"></p>
-    </div>
-
-    <div class="section">
-      <h2>⏳ Skip Time</h2>
-      <div class="small-buttons">
-        <button onclick="skipDays(1)">▶ 1 Day</button>
-        <button onclick="skipDays(10)">⏩ 10 Days</button>
-        <button onclick="skipDays(100)">⏭ 100</button>
-        <button onclick="skipDays(365)">🗓 1 Year</button>
-      </div>
-      <div>
-        <input type="number" id="customYearsSkip" value="1" min="1" />
-        <button onclick="skipCustomYears()">📆 Custom Years</button>
+      <h2>
+        <span>🎮 Controls</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'controlsContent')">▲</button>
+      </h2>
+      <div id="controlsContent" class="section-content">
+        <button onclick="saveGame(true)">💾 Save</button>
+        <button onclick="loadGame()">📂 Load</button>
+        <button onclick="resetGame()">🧨 Reset</button>
+        <p id="gameMessage" style="color: yellow;"></p>
       </div>
     </div>
 
     <div class="section">
-      <h2>📊 Stats</h2>
-      <p>🧍‍♂️ Manpower: <span id="manpower">0</span></p>
-      <p>👷 Workers: <span id="workers">0</span></p>
-      <p>🏠 Population: <span id="population">0</span></p>
-    </div>
-
-    <div class="section">
-      <h2>👷 Hire Worker</h2>
-      <button onclick="hireWorker()">➕ Hire (Cost: <span id="workerCost">10</span>)</button>
-    </div>
-
-    <div class="section">
-      <h2>⚙️ Resource Workers</h2>
-      <p>Unassigned: <span id="unassigned">0</span></p>
-      <div class="small-buttons">
-        <p>Steel: <span id="steel">0</span> (<span id="steelWorkers">0</span>)
-          <button onclick="assignWorker('steel')">+1</button>
-          <button onclick="unassignWorker('steel')">-1</button>
-        </p>
-        <p>Food: <span id="food">0</span> (<span id="foodWorkers">0</span>)
-          <button onclick="assignWorker('food')">+1</button>
-          <button onclick="unassignWorker('food')">-1</button>
-        </p>
-        <p>Oil: <span id="oil">0</span> (<span id="oilWorkers">0</span>)
-          <button onclick="assignWorker('oil')">+1</button>
-          <button onclick="unassignWorker('oil')">-1</button>
-        </p>
+      <h2>
+        <span>📜 Policy</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'policyContent')">▲</button>
+      </h2>
+      <div id="policyContent" class="section-content">
+        <select id="policySelect" onchange="selectPolicy()">
+          <option value="none">-- Select Policy --</option>
+          <option value="marxism">Marxism</option>
+          <option value="stalinism">Stalinism</option>
+          <option value="maoism">Maoism</option>
+          <option value="anarcho">Anarcho-Communism</option>
+          <option value="leninism">Leninism</option>
+          <option value="trotskyism">Trotskyism</option>
+          <option value="kronstadtism">Kronstadtism</option>
+        </select>
+        <p><strong>Current:</strong> <span id="currentPolicy">None</span></p>
+        <p id="policyEffects" style="font-style: italic; font-size: 0.9em;"></p>
       </div>
     </div>
 
     <div class="section">
-      <h2>📋 Quota (Day <span id="dayCount">1</span>)</h2>
-      <ul>
-        <li>Steel: <span id="quotaSteel">0</span>/<span id="targetSteel">100</span></li>
-        <li>Food: <span id="quotaFood">0</span>/<span id="targetFood">80</span></li>
-        <li>Oil: <span id="quotaOil">0</span>/<span id="targetOil">50</span></li>
-      </ul>
-      <p id="quotaStatus" class="quotaStatus not-met">🚫 Not Met</p>
-      <p id="warning"></p>
+      <h2>
+        <span>⏳ Skip Time</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'skipTimeContent')">▲</button>
+      </h2>
+      <div id="skipTimeContent" class="section-content">
+        <div class="small-buttons">
+          <button onclick="skipDays(1)">▶ 1 Day</button>
+          <button onclick="skipDays(10)">⏩ 10 Days</button>
+          <button onclick="skipDays(100)">⏭ 100</button>
+          <button onclick="skipDays(365)">🗓 1 Year</button>
+        </div>
+        <div>
+          <input type="number" id="customYearsSkip" value="1" min="1" />
+          <button onclick="skipCustomYears()">📆 Custom Years</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>
+        <span>📊 Stats</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'statsContent')">▲</button>
+      </h2>
+      <div id="statsContent" class="section-content">
+        <p>🧍‍♂️ Manpower: <span id="manpower">0</span></p>
+        <p>👷 Workers: <span id="workers">0</span></p>
+        <p>🏠 Population: <span id="population">0</span></p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>
+        <span>👷 Hire Worker</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'hireWorkerContent')">▲</button>
+      </h2>
+      <div id="hireWorkerContent" class="section-content">
+        <button onclick="hireWorker()">➕ Hire (Cost: <span id="workerCost">10</span>)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>
+        <span>⚙️ Resource Workers</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'resourceWorkersContent')">▲</button>
+      </h2>
+      <div id="resourceWorkersContent" class="section-content">
+        <p>Unassigned: <span id="unassigned">0</span></p>
+        <div class="small-buttons">
+          <p>Steel: <span id="steel">0</span> (<span id="steelWorkers">0</span>)
+            <button onclick="assignWorker('steel')">+1</button>
+            <button onclick="unassignWorker('steel')">-1</button>
+          </p>
+          <p>Food: <span id="food">0</span> (<span id="foodWorkers">0</span>)
+            <button onclick="assignWorker('food')">+1</button>
+            <button onclick="unassignWorker('food')">-1</button>
+          </p>
+          <p>Oil: <span id="oil">0</span> (<span id="oilWorkers">0</span>)
+            <button onclick="assignWorker('oil')">+1</button>
+            <button onclick="unassignWorker('oil')">-1</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>
+        <span>📋 Quota (Day <span id="dayCount">1</span>)</span>
+        <button class="collapse-button" onclick="toggleCollapse(this, 'quotaContent')">▲</button>
+      </h2>
+      <div id="quotaContent" class="section-content">
+        <ul>
+          <li>Steel: <span id="quotaSteel">0</span>/<span id="targetSteel">100</span></li>
+          <li>Food: <span id="quotaFood">0</span>/<span id="targetFood">80</span></li>
+          <li>Oil: <span id="quotaOil">0</span>/<span id="targetOil">50</span></li>
+        </ul>
+        <p id="quotaStatus" class="quotaStatus not-met">🚫 Not Met</p>
+        <p id="warning"></p>
+      </div>
     </div>
   </div>
 
   <script>
-          // Game state variables
+        // Game state variables
     let manpower = 0;
     let workers = 0;
     let unassignedWorkers = 0;
@@ -221,6 +292,17 @@
         messageTimeoutId = setTimeout(() => {
             gameMessageEl.innerText = "";
         }, duration);
+    }
+
+    // New function to toggle section visibility
+    function toggleCollapse(button, contentId) {
+        const content = document.getElementById(contentId);
+        content.classList.toggle('collapsed');
+        if (content.classList.contains('collapsed')) {
+            button.textContent = '▼'; // Down arrow when collapsed
+        } else {
+            button.textContent = '▲'; // Up arrow when open
+        }
     }
 
     // Updates all UI elements
@@ -289,8 +371,7 @@
         }
         updateUI();
     }
-
-    // Applies effects based on selected policy
+        // Applies effects based on selected policy
     function selectPolicy() {
         policy = document.getElementById("policySelect").value;
 
@@ -359,6 +440,12 @@
 
     // Save game state to local storage
     function saveGame(isManual = false) {
+        // Get the current collapse states
+        const collapsedStates = {};
+        document.querySelectorAll('.section-content').forEach(content => {
+            collapsedStates[content.id] = content.classList.contains('collapsed');
+        });
+
         const gameState = {
             manpower,
             workers,
@@ -377,7 +464,8 @@
             baseTargetFood,
             baseTargetOil,
             policy,
-            population
+            population,
+            collapsedStates // Save the collapse states
         };
         localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
         if (isManual) {
@@ -413,6 +501,23 @@
             selectPolicy(); // Reapply policy effects and update UI
             updateUI();
             showGameMessage("Game Loaded! 📂", 2000);
+
+            // Restore collapse states
+            if (gameState.collapsedStates) {
+                for (const id in gameState.collapsedStates) {
+                    const content = document.getElementById(id);
+                    if (content) {
+                        const button = content.previousElementSibling.querySelector('.collapse-button');
+                        if (gameState.collapsedStates[id]) {
+                            content.classList.add('collapsed');
+                            if (button) button.textContent = '▼';
+                        } else {
+                            content.classList.remove('collapsed');
+                            if (button) button.textContent = '▲';
+                        }
+                    }
+                }
+            }
         } else {
             showGameMessage("No saved game found! Starting new game.", 2000);
             resetGame(false); // Start a new game if no save found, without prompt
@@ -444,10 +549,15 @@
             if (promptUser) {
                 showGameMessage("Game Reset! 🆕", 2000);
             }
+            // Ensure all sections are open on reset
+            document.querySelectorAll('.section-content').forEach(content => {
+                content.classList.remove('collapsed');
+                const button = content.previousElementSibling.querySelector('.collapse-button');
+                if (button) button.textContent = '▲';
+            });
         }
     }
-
-    // --- Time Skip Functionality ---
+        // --- Time Skip Functionality ---
     function skipDays(numDays) {
         clearInterval(gameLoopInterval); // Stop current loops
         clearInterval(dayLoopInterval);
@@ -700,7 +810,6 @@
     // Initial setup on page load
     loadGame(); // Try to load a saved game first
     startGameLoops(); // Then start the game loops
-
-  </script>
+      </script>
 </body>
 </html>
