@@ -116,10 +116,76 @@
       margin-top: 10px;
     }
 
+    /* New Manager Menu Styles */
+    #managerMenu {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 15px;
+      width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none; /* Hidden by default */
+    }
+
+    #managerMenu h2 {
+      margin-top: 0;
+      border-bottom: 1px solid #444;
+      padding-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #managerMenu h2 .close-button {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 1.5em;
+      cursor: pointer;
+    }
+    #managerMenu h2 .close-button:hover {
+      color: #eee;
+    }
+
+    #managerMenu .manager-pic {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    #managerMenu .manager-pic img {
+      max-width: 100px;
+      border-radius: 50%;
+      border: 2px solid #777;
+    }
+
+    #managerMenu .manager-section {
+      background: #333;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    #managerMenu .manager-section h3 {
+      margin-top: 0;
+      font-size: 1em;
+      color: #ccc;
+    }
+
     @media (max-width: 800px) {
       .container {
         flex-direction: column;
         align-items: center;
+      }
+      #managerMenu {
+        width: 90%;
+        left: 5%;
+        right: 5%;
+        top: 10px;
       }
     }
   </style>
@@ -127,6 +193,31 @@
 <body>
   <h1>☭ USSR Economy Simulator ☭</h1>
 
+  <div id="managerMenu">
+    <h2>
+      <span>🪖 Central Command</span>
+      <button class="close-button" onclick="closeManagerMenu()">X</button>
+    </h2>
+    <div class="manager-pic">
+      <img id="managerImage" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lenin_CL_edited.jpg/800px-Lenin_CL_edited.jpg" alt="USSR Manager">
+      <p style="margin-top: 5px; font-weight: bold;">Comrade Manager</p>
+    </div>
+
+    <div class="manager-section">
+      <h3>State Recruiter (Lv. 1)</h3>
+      <p>Uses all available Manpower to recruit new Workers over time.</p>
+      <p>Workers gained per day: <span id="recruiterEfficiency">0</span></p>
+      <button onclick="toggleStateRecruiter()">
+        <span id="recruiterButtonText">Activate</span> State Recruiter
+      </button>
+    </div>
+
+    <div class="manager-section">
+      <h3>Central Assigner</h3>
+      <p>Assigns all unassigned workers equally to Steel, Food, and Oil.</p>
+      <button onclick="autoAssignWorkers()">"3 Quotes Right and Done"</button>
+    </div>
+  </div>
   <div class="container">
     <div class="section">
       <h2>
@@ -137,7 +228,7 @@
         <button onclick="saveGame(true)">💾 Save</button>
         <button onclick="loadGame()">📂 Load</button>
         <button onclick="resetGame()">🧨 Reset</button>
-        <p id="gameMessage" style="color: yellow;"></p>
+        <button onclick="openManagerMenu()">🪖 Manager</button> <p id="gameMessage" style="color: yellow;"></p>
       </div>
     </div>
 
@@ -271,6 +362,11 @@
     const populationDeclineRate = 0.01; // 1% decline if food is insufficient
     let populationManpowerMultiplier = 1; // Multiplier for manpower gained from population
 
+    // New Manager Variables
+    let isManagerMenuOpen = false;
+    let isStateRecruiterActive = false;
+    const recruiterWorkerPerManpower = 0.005; // How many workers 1 manpower generates over time (per second)
+
     // Interval IDs for game loops
     let gameLoopInterval;
     let dayLoopInterval;
@@ -305,6 +401,85 @@
         }
     }
 
+    // New Manager Menu functions
+    function openManagerMenu() {
+        document.getElementById('managerMenu').style.display = 'block';
+        isManagerMenuOpen = true;
+        updateManagerUI();
+    }
+
+    function closeManagerMenu() {
+        document.getElementById('managerMenu').style.display = 'none';
+        isManagerMenuOpen = false;
+    }
+
+    // Updates Manager UI elements
+    function updateManagerUI() {
+        document.getElementById("recruiterEfficiency").innerText = (manpower * recruiterWorkerPerManpower).toFixed(2);
+        document.getElementById("recruiterButtonText").innerText = isStateRecruiterActive ? "Deactivate" : "Activate";
+
+        const managerImageElement = document.getElementById("managerImage");
+        const managerNameElement = managerImageElement.nextElementSibling; // The <p> tag after the image
+
+        const managerImages = [
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lenin_CL_edited.jpg/800px-Lenin_CL_edited.jpg", // Lenin
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Stalin_in_1942%2C_photo_by_A.V.Kapur.jpg/800px-Stalin_in_1942%2C_photo_by_A.V.Kapur.jpg", // Stalin
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Mao_Zedong_in_1959.jpg/800px-Mao_Zedong_in_1959.jpg", // Mao
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Karl_Marx_1875.jpg/800px-Karl_Marx_1875.jpg", // Karl Marx
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Leon_Trotsky_circa_1919.jpg/800px-Leon_Trotsky_circa_1919.jpg", // Trotsky
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Brezhnev_at_the_Kremlin_1969.jpg/800px-Brezhnev_at_the_Kremlin_1969.jpg" // Brezhnev
+        ];
+        const managerNames = [
+            "Comrade Lenin",
+            "Comrade Stalin",
+            "Comrade Mao",
+            "Comrade Marx",
+            "Comrade Trotsky",
+            "Comrade Brezhnev"
+        ];
+
+        // Randomly select a manager if not already set, or update if the image URL is not in our list (e.g., first load)
+        if (!managerImageElement.dataset.originalSrc || !managerImages.includes(managerImageElement.dataset.originalSrc)) {
+            const randomIndex = Math.floor(Math.random() * managerImages.length);
+            managerImageElement.src = managerImages[randomIndex];
+            managerNameElement.innerText = managerNames[randomIndex];
+            managerImageElement.dataset.originalSrc = managerImages[randomIndex]; // Store the chosen src
+        }
+    }
+
+    // Toggles the State Recruiter on/off
+    function toggleStateRecruiter() {
+        isStateRecruiterActive = !isStateRecruiterActive;
+        updateManagerUI();
+        showGameMessage(`State Recruiter ${isStateRecruiterActive ? 'Activated' : 'Deactivated'}`, 2000);
+    }
+
+    // Automatically assigns unassigned workers equally
+    function autoAssignWorkers() {
+        if (unassignedWorkers === 0) {
+            showGameMessage("No unassigned workers to assign!", 2000);
+            return;
+        }
+
+        const assignableWorkers = unassignedWorkers;
+        const types = ['steel', 'food', 'oil'];
+        const workersPerType = Math.floor(assignableWorkers / types.length);
+
+        if (workersPerType === 0) {
+            showGameMessage("Not enough unassigned workers to assign equally to all types.", 2000);
+            return;
+        }
+
+        steelWorkers += workersPerType;
+        foodWorkers += workersPerType;
+        oilWorkers += workersPerType;
+        unassignedWorkers -= (workersPerType * types.length);
+
+        showGameMessage(`Assigned ${workersPerType} workers to Steel, Food, and Oil each!`, 3000);
+        updateUI();
+    }
+
+
     // Updates all UI elements
     function updateUI() {
         document.getElementById("manpower").innerText = display(manpower);
@@ -333,6 +508,11 @@
         const status = document.getElementById("quotaStatus");
         status.innerText = met ? "✅ Quota Met! Glory to the Motherland!" : "🚫 Quota Not Met";
         status.className = met ? "quotaStatus met" : "quotaStatus not-met";
+
+        // Update manager UI if open
+        if (isManagerMenuOpen) {
+            updateManagerUI();
+        }
     }
 
     // Hire a new worker if enough manpower
@@ -446,6 +626,10 @@
             collapsedStates[content.id] = content.classList.contains('collapsed');
         });
 
+        // Get the current manager image and name
+        const managerImageElement = document.getElementById("managerImage");
+        const managerNameElement = managerImageElement.nextElementSibling;
+
         const gameState = {
             manpower,
             workers,
@@ -465,7 +649,10 @@
             baseTargetOil,
             policy,
             population,
-            collapsedStates // Save the collapse states
+            collapsedStates, // Save the collapse states
+            isStateRecruiterActive, // Save recruiter state
+            currentManagerImageSrc: managerImageElement.src, // Save current manager image
+            currentManagerName: managerNameElement.innerText // Save current manager name
         };
         localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
         if (isManual) {
@@ -497,6 +684,7 @@
             baseTargetOil = gameState.baseTargetOil;
             policy = gameState.policy;
             population = gameState.population || 500; // Load population, default to 500 if not found
+            isStateRecruiterActive = gameState.isStateRecruiterActive || false; // Load recruiter state
 
             selectPolicy(); // Reapply policy effects and update UI
             updateUI();
@@ -517,6 +705,17 @@
                         }
                     }
                 }
+            }
+
+            // Restore manager image and name
+            const managerImageElement = document.getElementById("managerImage");
+            const managerNameElement = managerImageElement.nextElementSibling;
+            if (gameState.currentManagerImageSrc) {
+                managerImageElement.src = gameState.currentManagerImageSrc;
+                managerImageElement.dataset.originalSrc = gameState.currentManagerImageSrc; // Also set originalSrc
+            }
+            if (gameState.currentManagerName) {
+                managerNameElement.innerText = gameState.currentManagerName;
             }
         } else {
             showGameMessage("No saved game found! Starting new game.", 2000);
@@ -542,6 +741,7 @@
             baseTargetSteel = 100; baseTargetFood = 80; baseTargetOil = 50;
             policy = "none";
             population = 500; // Reset population
+            isStateRecruiterActive = false; // Reset recruiter state
 
             localStorage.removeItem('ussrEconomySave');
             selectPolicy(); // This will reset multipliers and target quotas
@@ -555,6 +755,10 @@
                 const button = content.previousElementSibling.querySelector('.collapse-button');
                 if (button) button.textContent = '▲';
             });
+            // Reset manager image to default random on reset
+            const managerImageElement = document.getElementById("managerImage");
+            delete managerImageElement.dataset.originalSrc; // Clear stored source to trigger new random pic
+            updateManagerUI(); // Update to get a new random image/name
         }
     }
         // --- Time Skip Functionality ---
@@ -564,6 +768,7 @@
         clearInterval(autoSaveInterval);
 
         let accumulatedManpower = 0;
+        let accumulatedWorkersFromRecruiter = 0; // New: accumulated workers from recruiter
         let accumulatedSteel = 0;
         let accumulatedFood = 0;
         let accumulatedOil = 0;
@@ -578,6 +783,19 @@
             let currentManpowerGainFromPolicy = manpowerGain;
             let manpowerFromPop = Math.floor(currentPopulation / 100) * populationManpowerMultiplier;
             accumulatedManpower += currentManpowerGainFromPolicy + manpowerFromPop;
+
+            // New: State Recruiter effect during skip
+            if (isStateRecruiterActive) {
+                // Assume 1 tick per second, and a day is 60 seconds
+                const ticksPerDay = 60;
+                let dailyManpowerConsumption = manpower * recruiterWorkerPerManpower * ticksPerDay;
+                let dailyWorkersRecruited = Math.floor(dailyManpowerConsumption); // Recruit whole workers
+                accumulatedWorkersFromRecruiter += dailyWorkersRecruited;
+                // Manpower is consumed from the accumulatedManpower for this day
+                // This is a simplification; ideally, it'd reduce available manpower in real-time.
+                // For skip, we'll just track workers gained and assume manpower is consumed.
+                // We'll deduct total manpower for recruitment at the end of the skip.
+            }
 
             // Resource production
             let steelGain = steelWorkers * prodMultiplier;
@@ -617,6 +835,8 @@
 
         // Apply accumulated values to game state
         manpower += accumulatedManpower;
+        workers += accumulatedWorkersFromRecruiter; // Add workers gained from recruiter
+        unassignedWorkers += accumulatedWorkersFromRecruiter; // New workers are unassigned
         steel += accumulatedSteel;
         food += accumulatedFood;
         oil += accumulatedOil;
@@ -682,7 +902,7 @@
 
         selectPolicy(); // Reapply policy effects to update current targets/multipliers
         updateUI();
-        showGameMessage(`Skipped ${numDays} days!`, 3000);
+        showGameMessage(`Skipped ${numDays} days! Recruited ${accumulatedWorkersFromRecruiter} workers.`, 3000);
 
         startGameLoops(); // Restart loops after skip
         saveGame(true); // Auto-save after a skip
@@ -711,6 +931,19 @@
             let currentManpowerGainFromPolicy = manpowerGain;
             let manpowerFromPop = Math.floor(population / 100) * populationManpowerMultiplier;
             manpower += currentManpowerGainFromPolicy + manpowerFromPop;
+
+            // State Recruiter effect
+            if (isStateRecruiterActive) {
+                let workersToRecruit = manpower * recruiterWorkerPerManpower;
+                if (workersToRecruit >= 1) { // Recruit if we have enough "fractional" workers
+                    let newWorkers = Math.floor(workersToRecruit);
+                    workers += newWorkers;
+                    unassignedWorkers += newWorkers;
+                    manpower -= (newWorkers / recruiterWorkerPerManpower); // Consume manpower for recruitment
+                    // Ensure manpower doesn't go negative from this
+                    manpower = Math.max(0, manpower);
+                }
+            }
 
             let steelGain = steelWorkers * prodMultiplier;
             let foodGain = foodWorkers * prodMultiplier;
