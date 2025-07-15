@@ -116,7 +116,7 @@
       margin-top: 10px;
     }
 
-    /* New Manager Menu Styles */
+    /* Manager Menu Styles */
     #managerMenu {
       position: fixed;
       top: 20px;
@@ -176,22 +176,102 @@
       color: #ccc;
     }
 
+    /* New Upgrade Menu Styles */
+    #upgradeMenu {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 15px;
+      width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none; /* Hidden by default */
+    }
+
+    #upgradeMenu h2 {
+      margin-top: 0;
+      border-bottom: 1px solid #444;
+      padding-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #upgradeMenu h2 .close-button {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 1.5em;
+      cursor: pointer;
+    }
+    #upgradeMenu h2 .close-button:hover {
+      color: #eee;
+    }
+
+    .upgrade-category {
+      margin-bottom: 15px;
+    }
+
+    .upgrade-item {
+      background: #333;
+      padding: 8px 10px;
+      border-radius: 5px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    }
+
+    .upgrade-item p {
+      margin: 0;
+      flex-basis: 70%; /* Give text more space */
+    }
+
+    .upgrade-item button {
+      margin-left: auto; /* Push button to the right */
+      padding: 4px 8px;
+      font-size: 0.9em;
+    }
+
+    #upgradeMenu .points-display {
+      text-align: center;
+      margin-bottom: 15px;
+      font-weight: bold;
+      color: lightblue;
+      font-size: 1.1em;
+    }
+
     @media (max-width: 800px) {
       .container {
         flex-direction: column;
         align-items: center;
       }
-      #managerMenu {
+      #managerMenu, #upgradeMenu {
         width: 90%;
         left: 5%;
         right: 5%;
         top: 10px;
+      }
+      #pointUpgradeButton {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1001; /* Ensure it's above other elements */
       }
     }
   </style>
 </head>
 <body>
   <h1>☭ USSR Economy Simulator ☭</h1>
+
+  <button id="pointUpgradeButton" onclick="openUpgradeMenu()">
+    ✨ Point Upgrades
+  </button>
 
   <div id="managerMenu">
     <h2>
@@ -204,9 +284,10 @@
     </div>
 
     <div class="manager-section">
-      <h3>State Recruiter (Lv. 1)</h3>
+      <h3>State Recruiter (Lv. <span id="recruiterLevel">1</span>)</h3>
       <p>Uses all available Manpower to recruit new Workers over time.</p>
-      <p>Workers gained per day: <span id="recruiterEfficiency">0</span></p>
+      <p>Workers gained per second: <span id="recruiterEfficiency">0</span></p>
+      <p>Workers per MP Batch: <span id="recruiterMPBatch">1</span></p>
       <button onclick="toggleStateRecruiter()">
         <span id="recruiterButtonText">Activate</span> State Recruiter
       </button>
@@ -216,6 +297,46 @@
       <h3>Central Assigner</h3>
       <p>Assigns all unassigned workers equally to Steel, Food, and Oil.</p>
       <button onclick="autoAssignWorkers()">"3 Quotes Right and Done"</button>
+      <p>Auto-Assign: <span id="autoAssignStatus">Off</span></p>
+      <button onclick="toggleAutoAssign()">Toggle Auto-Assign</button>
+    </div>
+  </div>
+  <div id="upgradeMenu">
+    <h2>
+      <span>✨ Upgrades</span>
+      <button class="close-button" onclick="closeUpgradeMenu()">X</button>
+    </h2>
+
+    <div class="points-display">
+      Manager Points: <span id="managerPointsDisplay">0</span> | Upgrade Points: <span id="upgradePointsDisplay">0</span>
+    </div>
+
+    <div class="upgrade-category">
+      <h3>Manager Upgrades</h3>
+      <div class="upgrade-item">
+        <p>Recruiter Efficiency: Lv <span id="recruiterEffLevel">0</span> (+<span id="recruiterEffBonus">0</span>%)</p>
+        <button onclick="upgradeRecruiterEfficiency()">Upgrade (Cost: 1 Manager Point)</button>
+      </div>
+    </div>
+
+    <div class="upgrade-category">
+      <h3>General Upgrades</h3>
+      <div class="upgrade-item">
+        <p>Production Gain: Lv <span id="prodGainLevel">0</span> (+<span id="prodGainBonus">0</span>%)</p>
+        <button onclick="upgradeProductionGain()">Upgrade (Cost: 1 Upgrade Point)</button>
+      </div>
+      <div class="upgrade-item">
+        <p>Manpower Gain: Lv <span id="manpowerGainLevel">0</span> (+<span id="manpowerGainBonus">0</span>)</p>
+        <button onclick="upgradeManpowerGain()">Upgrade (Cost: 1 Upgrade Point)</button>
+      </div>
+      <div class="upgrade-item">
+        <p>Worker Cost Reduction: Lv <span id="workerCostLevel">0</span> (-<span id="workerCostBonus">0</span>%)</p>
+        <button onclick="upgradeWorkerCostReduction()">Upgrade (Cost: 1 Upgrade Point)</button>
+      </div>
+      <div class="upgrade-item">
+        <p>Workers Per MP Batch: Lv <span id="workerMPBatchLevel">0</span> (+<span id="workerMPBatchBonus">0</span>)</p>
+        <button onclick="upgradeWorkerMPBatch()">Upgrade (Cost: 1 Upgrade Point)</button>
+      </div>
     </div>
   </div>
   <div class="container">
@@ -362,10 +483,40 @@
     const populationDeclineRate = 0.01; // 1% decline if food is insufficient
     let populationManpowerMultiplier = 1; // Multiplier for manpower gained from population
 
-    // New Manager Variables
+    // New Manager & Upgrade Variables
     let isManagerMenuOpen = false;
+    let isUpgradeMenuOpen = false; // New: track if upgrade menu is open
+
+    // Manager: Recruiter
     let isStateRecruiterActive = false;
-    const recruiterWorkerPerManpower = 0.005; // How many workers 1 manpower generates over time (per second)
+    let recruiterLevel = 1; // Base level for recruiter
+    let recruiterEfficiencyBonus = 0; // % bonus from upgrades
+    let recruiterWorkerPerManpower = 0.005; // Base workers per manpower per tick
+    let workerMPBatch = 1; // Base workers per batch from recruiter
+
+    // Manager: Auto-Assigner
+    let isAutoAssignActive = false;
+
+    // Upgrade Points
+    let managerPoints = 0;
+    let upgradePoints = 0;
+
+    // General Upgrades Levels & Caps
+    let productionGainLevel = 0;
+    const MAX_PRODUCTION_GAIN_LEVEL = 15;
+    const PRODUCTION_GAIN_PER_LEVEL = 0.02; // 2% per level
+
+    let manpowerGainLevel = 0;
+    const MAX_MANPOWER_GAIN_LEVEL = 15;
+    const MANPOWER_GAIN_PER_LEVEL = 0.1; // +0.1 per tick per level
+
+    let workerCostReductionLevel = 0;
+    const MAX_WORKER_COST_REDUCTION_LEVEL = 15;
+    const WORKER_COST_REDUCTION_PER_LEVEL = 0.01; // 1% reduction per level
+
+    let workerMPBatchLevel = 0;
+    const MAX_WORKER_MP_BATCH_LEVEL = 3;
+    const WORKER_MP_BATCH_PER_LEVEL = 1; // +1 worker per batch per level
 
     // Interval IDs for game loops
     let gameLoopInterval;
@@ -401,7 +552,7 @@
         }
     }
 
-    // New Manager Menu functions
+    // Manager Menu functions
     function openManagerMenu() {
         document.getElementById('managerMenu').style.display = 'block';
         isManagerMenuOpen = true;
@@ -413,10 +564,25 @@
         isManagerMenuOpen = false;
     }
 
+    // Upgrade Menu functions
+    function openUpgradeMenu() {
+        document.getElementById('upgradeMenu').style.display = 'block';
+        isUpgradeMenuOpen = true;
+        updateUpgradeUI();
+    }
+
+    function closeUpgradeMenu() {
+        document.getElementById('upgradeMenu').style.display = 'none';
+        isUpgradeMenuOpen = false;
+    }
+
     // Updates Manager UI elements
     function updateManagerUI() {
-        document.getElementById("recruiterEfficiency").innerText = (manpower * recruiterWorkerPerManpower).toFixed(2);
+        document.getElementById("recruiterLevel").innerText = recruiterLevel;
+        document.getElementById("recruiterEfficiency").innerText = (recruiterWorkerPerManpower * (1 + recruiterEfficiencyBonus)).toFixed(4); // Show actual efficiency
+        document.getElementById("recruiterMPBatch").innerText = workerMPBatch;
         document.getElementById("recruiterButtonText").innerText = isStateRecruiterActive ? "Deactivate" : "Activate";
+        document.getElementById("autoAssignStatus").innerText = isAutoAssignActive ? "On" : "Off";
 
         const managerImageElement = document.getElementById("managerImage");
         const managerNameElement = managerImageElement.nextElementSibling; // The <p> tag after the image
@@ -452,6 +618,13 @@
         isStateRecruiterActive = !isStateRecruiterActive;
         updateManagerUI();
         showGameMessage(`State Recruiter ${isStateRecruiterActive ? 'Activated' : 'Deactivated'}`, 2000);
+    }
+
+    // Toggles Auto-Assigner on/off
+    function toggleAutoAssign() {
+        isAutoAssignActive = !isAutoAssignActive;
+        updateManagerUI();
+        showGameMessage(`Auto-Assign ${isAutoAssignActive ? 'Activated' : 'Deactivated'}`, 2000);
     }
 
     // Automatically assigns unassigned workers equally
@@ -512,6 +685,10 @@
         // Update manager UI if open
         if (isManagerMenuOpen) {
             updateManagerUI();
+        }
+        // Update upgrade UI if open
+        if (isUpgradeMenuOpen) {
+            updateUpgradeUI();
         }
     }
 
@@ -609,6 +786,12 @@
                 effectsText = "";
         }
 
+        // Apply global upgrades after policy effects
+        prodMultiplier *= (1 + productionGainLevel * PRODUCTION_GAIN_PER_LEVEL);
+        manpowerGain += (manpowerGainLevel * MANPOWER_GAIN_PER_LEVEL);
+        workerCost *= (1 - workerCostReductionLevel * WORKER_COST_REDUCTION_PER_LEVEL);
+        workerCost = Math.max(1, Math.round(workerCost)); // Ensure worker cost doesn't go below 1
+
         // Apply quotas based on selected policy
         targetSteel = Math.floor(baseTargetSteel * quotaMultiplier);
         targetFood = Math.floor(baseTargetFood * quotaMultiplier);
@@ -652,7 +835,18 @@
             collapsedStates, // Save the collapse states
             isStateRecruiterActive, // Save recruiter state
             currentManagerImageSrc: managerImageElement.src, // Save current manager image
-            currentManagerName: managerNameElement.innerText // Save current manager name
+            currentManagerName: managerNameElement.innerText, // Save current manager name
+            isAutoAssignActive, // Save auto-assigner state
+
+            // Save upgrade levels and points
+            managerPoints,
+            upgradePoints,
+            recruiterLevel,
+            recruiterEfficiencyBonus, // We save the bonus, not the base efficiency
+            productionGainLevel,
+            manpowerGainLevel,
+            workerCostReductionLevel,
+            workerMPBatchLevel
         };
         localStorage.setItem('ussrEconomySave', JSON.stringify(gameState));
         if (isManual) {
@@ -685,8 +879,20 @@
             policy = gameState.policy;
             population = gameState.population || 500; // Load population, default to 500 if not found
             isStateRecruiterActive = gameState.isStateRecruiterActive || false; // Load recruiter state
+            isAutoAssignActive = gameState.isAutoAssignActive || false; // Load auto-assigner state
 
-            selectPolicy(); // Reapply policy effects and update UI
+            // Load upgrade levels and points
+            managerPoints = gameState.managerPoints || 0;
+            upgradePoints = gameState.upgradePoints || 0;
+            recruiterLevel = gameState.recruiterLevel || 1;
+            recruiterEfficiencyBonus = gameState.recruiterEfficiencyBonus || 0;
+            productionGainLevel = gameState.productionGainLevel || 0;
+            manpowerGainLevel = gameState.manpowerGainLevel || 0;
+            workerCostReductionLevel = gameState.workerCostReductionLevel || 0;
+            workerMPBatchLevel = gameState.workerMPBatchLevel || 0;
+            workerMPBatch = 1 + (workerMPBatchLevel * WORKER_MP_BATCH_PER_LEVEL); // Calculate current batch size
+
+            selectPolicy(); // Reapply policy and upgrade effects and update UI
             updateUI();
             showGameMessage("Game Loaded! 📂", 2000);
 
@@ -742,6 +948,18 @@
             policy = "none";
             population = 500; // Reset population
             isStateRecruiterActive = false; // Reset recruiter state
+            isAutoAssignActive = false; // Reset auto-assigner
+
+            // Reset upgrade levels and points
+            managerPoints = 0;
+            upgradePoints = 0;
+            recruiterLevel = 1;
+            recruiterEfficiencyBonus = 0;
+            productionGainLevel = 0;
+            manpowerGainLevel = 0;
+            workerCostReductionLevel = 0;
+            workerMPBatchLevel = 0;
+            workerMPBatch = 1;
 
             localStorage.removeItem('ussrEconomySave');
             selectPolicy(); // This will reset multipliers and target quotas
@@ -761,14 +979,119 @@
             updateManagerUI(); // Update to get a new random image/name
         }
     }
-        // --- Time Skip Functionality ---
+
+    // --- Upgrade Menu UI Update ---
+    function updateUpgradeUI() {
+        document.getElementById("managerPointsDisplay").innerText = managerPoints;
+        document.getElementById("upgradePointsDisplay").innerText = upgradePoints;
+
+        // Manager Upgrade: Recruiter Efficiency
+        document.getElementById("recruiterEffLevel").innerText = recruiterLevel -1; // Display 0 at start for clarity
+        document.getElementById("recruiterEffBonus").innerText = (recruiterEfficiencyBonus * 100).toFixed(0);
+        document.querySelector("#upgradeMenu .upgrade-category:nth-child(2) .upgrade-item button").disabled =
+            (managerPoints < 1 || recruiterLevel -1 >= MAX_PRODUCTION_GAIN_LEVEL); // Using MAX_PRODUCTION_GAIN_LEVEL for now, adjust if needed
+
+        // General Upgrades
+        // Production Gain
+        document.getElementById("prodGainLevel").innerText = productionGainLevel;
+        document.getElementById("prodGainBonus").innerText = (productionGainLevel * PRODUCTION_GAIN_PER_LEVEL * 100).toFixed(0);
+        document.querySelector("#upgradeMenu .upgrade-category:nth-child(3) .upgrade-item:nth-child(2) button").disabled =
+            (upgradePoints < 1 || productionGainLevel >= MAX_PRODUCTION_GAIN_LEVEL);
+
+        // Manpower Gain
+        document.getElementById("manpowerGainLevel").innerText = manpowerGainLevel;
+        document.getElementById("manpowerGainBonus").innerText = (manpowerGainLevel * MANPOWER_GAIN_PER_LEVEL).toFixed(1);
+        document.querySelector("#upgradeMenu .upgrade-category:nth-child(3) .upgrade-item:nth-child(3) button").disabled =
+            (upgradePoints < 1 || manpowerGainLevel >= MAX_MANPOWER_GAIN_LEVEL);
+
+        // Worker Cost Reduction
+        document.getElementById("workerCostLevel").innerText = workerCostReductionLevel;
+        document.getElementById("workerCostBonus").innerText = (workerCostReductionLevel * WORKER_COST_REDUCTION_PER_LEVEL * 100).toFixed(0);
+        document.querySelector("#upgradeMenu .upgrade-category:nth-child(3) .upgrade-item:nth-child(4) button").disabled =
+            (upgradePoints < 1 || workerCostReductionLevel >= MAX_WORKER_COST_REDUCTION_LEVEL);
+
+        // Worker Per MP Batch
+        document.getElementById("workerMPBatchLevel").innerText = workerMPBatchLevel;
+        document.getElementById("workerMPBatchBonus").innerText = (workerMPBatchLevel * WORKER_MP_BATCH_PER_LEVEL).toFixed(0);
+        document.querySelector("#upgradeMenu .upgrade-category:nth-child(3) .upgrade-item:nth-child(5) button").disabled =
+            (upgradePoints < 1 || workerMPBatchLevel >= MAX_WORKER_MP_BATCH_LEVEL);
+    }
+        // --- Upgrade Functions ---
+    function upgradeRecruiterEfficiency() {
+        if (managerPoints >= 1 && recruiterLevel -1 < MAX_PRODUCTION_GAIN_LEVEL) { // Using production gain max as a placeholder
+            managerPoints -= 1;
+            recruiterLevel++;
+            recruiterEfficiencyBonus += 0.05; // 5% efficiency per level
+            showGameMessage("Recruiter efficiency upgraded!", 2000);
+            updateUpgradeUI();
+            updateManagerUI(); // Also update manager UI to show new level/efficiency
+            saveGame();
+        } else {
+            showGameMessage("Not enough Manager Points or already max level!", 2000);
+        }
+    }
+
+    function upgradeProductionGain() {
+        if (upgradePoints >= 1 && productionGainLevel < MAX_PRODUCTION_GAIN_LEVEL) {
+            upgradePoints -= 1;
+            productionGainLevel++;
+            selectPolicy(); // Re-apply policy to update production multiplier
+            showGameMessage("Production gain upgraded!", 2000);
+            updateUpgradeUI();
+            saveGame();
+        } else {
+            showGameMessage("Not enough Upgrade Points or already max level!", 2000);
+        }
+    }
+
+    function upgradeManpowerGain() {
+        if (upgradePoints >= 1 && manpowerGainLevel < MAX_MANPOWER_GAIN_LEVEL) {
+            upgradePoints -= 1;
+            manpowerGainLevel++;
+            selectPolicy(); // Re-apply policy to update manpower gain
+            showGameMessage("Manpower gain upgraded!", 2000);
+            updateUpgradeUI();
+            saveGame();
+        } else {
+            showGameMessage("Not enough Upgrade Points or already max level!", 2000);
+        }
+    }
+
+    function upgradeWorkerCostReduction() {
+        if (upgradePoints >= 1 && workerCostReductionLevel < MAX_WORKER_COST_REDUCTION_LEVEL) {
+            upgradePoints -= 1;
+            workerCostReductionLevel++;
+            selectPolicy(); // Re-apply policy to update worker cost
+            showGameMessage("Worker cost reduction upgraded!", 2000);
+            updateUpgradeUI();
+            saveGame();
+        } else {
+            showGameMessage("Not enough Upgrade Points or already max level!", 2000);
+        }
+    }
+
+    function upgradeWorkerMPBatch() {
+        if (upgradePoints >= 1 && workerMPBatchLevel < MAX_WORKER_MP_BATCH_LEVEL) {
+            upgradePoints -= 1;
+            workerMPBatchLevel++;
+            workerMPBatch = 1 + (workerMPBatchLevel * WORKER_MP_BATCH_PER_LEVEL); // Update batch size
+            showGameMessage("Workers per MP batch upgraded!", 2000);
+            updateUpgradeUI();
+            updateManagerUI(); // Update manager UI to show new batch size
+            saveGame();
+        } else {
+            showGameMessage("Not enough Upgrade Points or already max level!", 2000);
+        }
+    }
+
+    // --- Time Skip Functionality ---
     function skipDays(numDays) {
         clearInterval(gameLoopInterval); // Stop current loops
         clearInterval(dayLoopInterval);
         clearInterval(autoSaveInterval);
 
         let accumulatedManpower = 0;
-        let accumulatedWorkersFromRecruiter = 0; // New: accumulated workers from recruiter
+        let accumulatedWorkersFromRecruiter = 0;
         let accumulatedSteel = 0;
         let accumulatedFood = 0;
         let accumulatedOil = 0;
@@ -778,23 +1101,24 @@
 
         let currentPopulation = population; // Use a temporary variable for population changes
 
+        // Calculate current recruiter efficiency for skip
+        const currentRecruiterEfficiency = recruiterWorkerPerManpower * (1 + recruiterEfficiencyBonus);
+
         for (let i = 0; i < numDays; i++) {
             // Manpower gain
-            let currentManpowerGainFromPolicy = manpowerGain;
+            let currentManpowerGainFromPolicy = manpowerGain; // Base manpower gain includes policy effects
             let manpowerFromPop = Math.floor(currentPopulation / 100) * populationManpowerMultiplier;
             accumulatedManpower += currentManpowerGainFromPolicy + manpowerFromPop;
 
-            // New: State Recruiter effect during skip
+            // State Recruiter effect during skip (daily effect based on the *average* manpower)
             if (isStateRecruiterActive) {
-                // Assume 1 tick per second, and a day is 60 seconds
-                const ticksPerDay = 60;
-                let dailyManpowerConsumption = manpower * recruiterWorkerPerManpower * ticksPerDay;
-                let dailyWorkersRecruited = Math.floor(dailyManpowerConsumption); // Recruit whole workers
+                // Approximate manpower available for recruitment for this day
+                // This is a simplification; a more complex model would track manpower per tick per day
+                let dailyManpowerForRecruitment = manpower + accumulatedManpower;
+                let dailyWorkersRecruited = Math.floor(dailyManpowerForRecruitment * currentRecruiterEfficiency * 60 * workerMPBatch); // Assume 60 ticks per day for simplicity for recruiter in skip
                 accumulatedWorkersFromRecruiter += dailyWorkersRecruited;
-                // Manpower is consumed from the accumulatedManpower for this day
-                // This is a simplification; ideally, it'd reduce available manpower in real-time.
-                // For skip, we'll just track workers gained and assume manpower is consumed.
-                // We'll deduct total manpower for recruitment at the end of the skip.
+                // Manpower is 'consumed' by the recruiter over the days, so reduce accumulatedManpower
+                accumulatedManpower = Math.max(0, accumulatedManpower - dailyManpowerForRecruitment); // Very rough consumption
             }
 
             // Resource production
@@ -852,6 +1176,7 @@
         warningEl.innerText = ""; // Clear previous warnings
 
         let penaltyMessage = "";
+        let quotaMetOverall = true;
 
         // Check if overall quota for the skipped period was met
         let steelMet = accumulatedQuotaSteel >= totalTargetSteel;
@@ -860,6 +1185,7 @@
 
         if (!steelMet || !foodMet || !oilMet) {
             penaltyMessage += "⚠️ Quotas not met for the skipped period! ";
+            quotaMetOverall = false;
         }
 
         // Apply 50% penalty to *current* accumulated resources for each *unmet* quota
@@ -886,6 +1212,14 @@
         if (!oilMet) {
             baseTargetOil += Math.floor(baseTargetOil * 0.5) * numDays;
         }
+
+        // New: Award points for meeting quotas
+        if (quotaMetOverall) {
+            managerPoints += (2 * numDays); // 2 Manager Points per day quota met
+            upgradePoints += (2 * numDays); // 2 Upgrade Points per day quota met
+            showGameMessage(`Quota met for ${numDays} days! Gained ${2 * numDays} Manager Points and ${2 * numDays} Upgrade Points!`, 3000);
+        }
+
 
         if (penaltyMessage) {
             warningEl.style.display = "block";
@@ -928,20 +1262,20 @@
         // Game loop - runs every second for resource production and manpower gain
         gameLoopInterval = setInterval(() => {
             // Calculate total manpower gain per tick
-            let currentManpowerGainFromPolicy = manpowerGain;
+            let currentManpowerGainForTick = manpowerGain; // manpowerGain already includes upgrades
             let manpowerFromPop = Math.floor(population / 100) * populationManpowerMultiplier;
-            manpower += currentManpowerGainFromPolicy + manpowerFromPop;
+            manpower += currentManpowerGainForTick + manpowerFromPop;
 
             // State Recruiter effect
             if (isStateRecruiterActive) {
-                let workersToRecruit = manpower * recruiterWorkerPerManpower;
-                if (workersToRecruit >= 1) { // Recruit if we have enough "fractional" workers
-                    let newWorkers = Math.floor(workersToRecruit);
+                const effectiveRecruiterEfficiency = recruiterWorkerPerManpower * (1 + recruiterEfficiencyBonus);
+                let potentialWorkers = manpower * effectiveRecruiterEfficiency;
+                if (potentialWorkers >= workerMPBatch) { // Only recruit if we can make at least one full batch
+                    let newWorkers = Math.floor(potentialWorkers / workerMPBatch) * workerMPBatch;
                     workers += newWorkers;
                     unassignedWorkers += newWorkers;
-                    manpower -= (newWorkers / recruiterWorkerPerManpower); // Consume manpower for recruitment
-                    // Ensure manpower doesn't go negative from this
-                    manpower = Math.max(0, manpower);
+                    manpower -= (newWorkers / effectiveRecruiterEfficiency); // Consume manpower for recruitment
+                    manpower = Math.max(0, manpower); // Ensure manpower doesn't go negative
                 }
             }
 
@@ -972,6 +1306,11 @@
         // Day loop - runs every 60 seconds to advance the day and apply daily effects
         dayLoopInterval = setInterval(() => {
             day++;
+
+            // Auto-assign workers if active
+            if (isAutoAssignActive) {
+                autoAssignWorkers();
+            }
 
             // Clear warnings at the start of a new day
             const warningEl = document.getElementById("warning");
@@ -1009,6 +1348,14 @@
             let oilPenalty = checkOverQuota(quotaOil, targetOil);
 
             let penaltyOccurred = steelPenalty > 0 || foodPenalty > 0 || oilPenalty > 0;
+
+            // Award points for meeting quotas
+            const currentDayQuotaMet = quotaSteel >= targetSteel && quotaFood >= targetFood && quotaOil >= targetOil;
+            if (currentDayQuotaMet) {
+                managerPoints += 2;
+                upgradePoints += 2;
+                showGameMessage("Daily quota met! Gained 2 Manager Points and 2 Upgrade Points!", 3000);
+            }
 
             // Remove penalized resources and increase base quota for next day
             steel = Math.max(0, steel - steelPenalty);
